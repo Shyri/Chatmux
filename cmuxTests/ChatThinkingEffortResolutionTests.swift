@@ -160,12 +160,33 @@ import Testing
 
     @Test func modelExplicitChoicesMapToKnownClaudeFlags() {
         #expect(ChatModelSelection.fable5.claudeFlag == "claude-fable-5")
+        #expect(ChatModelSelection.opus5.claudeFlag == "claude-opus-5")
+        #expect(ChatModelSelection.opus5Long.claudeFlag == "claude-opus-5[1m]")
         #expect(ChatModelSelection.opus48.claudeFlag == "claude-opus-4-8")
         #expect(ChatModelSelection.opus48Long.claudeFlag == "claude-opus-4-8[1m]")
         #expect(ChatModelSelection.opus.claudeFlag == "claude-opus-4-7")
         #expect(ChatModelSelection.opusLong.claudeFlag == "claude-opus-4-7[1m]")
+        #expect(ChatModelSelection.sonnet5.claudeFlag == "claude-sonnet-5")
         #expect(ChatModelSelection.sonnet.claudeFlag == "claude-sonnet-4-6")
         #expect(ChatModelSelection.haiku.claudeFlag == "claude-haiku-4-5")
+    }
+
+    /// Only `.default` may omit `--model`; every explicit row must carry a
+    /// flag, so a newly added model can't silently fall back to the CLI's
+    /// default just because someone forgot the `claudeFlag` case.
+    @Test func everyExplicitModelCarriesAFlag() {
+        for model in ChatModelSelection.allCases where model != .default {
+            #expect(model.claudeFlag?.isEmpty == false, "\(model.rawValue) has no --model flag")
+        }
+    }
+
+    /// Every picker row needs a localized label; a missing entry in
+    /// Localizable.xcstrings surfaces as the raw key at runtime.
+    @Test func everyModelLabelIsResolved() {
+        for model in ChatModelSelection.allCases {
+            #expect(!model.label.isEmpty)
+            #expect(model.label != "claudeChat.model.\(model.rawValue)")
+        }
     }
 
     // MARK: - helpers

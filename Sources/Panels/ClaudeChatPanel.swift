@@ -57,7 +57,8 @@ struct ChatAttachment: Identifiable, Equatable {
 /// Which Claude model the chat tells the CLI to use via `--model`.
 /// `default` means we don't pass `--model` and let the `claude` binary
 /// pick (whatever `~/.claude/settings.json` or `$ANTHROPIC_MODEL` says,
-/// otherwise the CLI's hard-coded default — Sonnet 4.6 today).
+/// otherwise the CLI's hard-coded default — Sonnet 5 since Claude Code
+/// 2.1.197).
 ///
 /// Just like `--permission-mode`, the CLI bakes `--model` into argv at
 /// spawn time and cannot change it mid-session — `ClaudeChatRunner`
@@ -66,10 +67,13 @@ struct ChatAttachment: Identifiable, Equatable {
 enum ChatModelSelection: String, CaseIterable, Identifiable {
     case `default`
     case fable5
+    case opus5
+    case opus5Long
     case opus48
     case opus48Long
     case opus
     case opusLong
+    case sonnet5
     case sonnet
     case haiku
 
@@ -83,14 +87,21 @@ enum ChatModelSelection: String, CaseIterable, Identifiable {
     /// always runs `claude-fable-5` with the 1M context window, so there
     /// is no separate `[1m]` variant the way Opus 4.7/4.8 have. Requires
     /// Claude Code v2.1.170+ at runtime.
+    ///
+    /// Opus 5 became the default Opus in Claude Code 2.1.219 and keeps the
+    /// `[1m]` long-context variant. Sonnet 5 (2.1.197) is the CLI's default
+    /// model and is natively 1M, so like Fable 5 it has no `[1m]` twin.
     var claudeFlag: String? {
         switch self {
         case .default: return nil
         case .fable5: return "claude-fable-5"
+        case .opus5: return "claude-opus-5"
+        case .opus5Long: return "claude-opus-5[1m]"
         case .opus48: return "claude-opus-4-8"
         case .opus48Long: return "claude-opus-4-8[1m]"
         case .opus: return "claude-opus-4-7"
         case .opusLong: return "claude-opus-4-7[1m]"
+        case .sonnet5: return "claude-sonnet-5"
         case .sonnet: return "claude-sonnet-4-6"
         case .haiku: return "claude-haiku-4-5"
         }
@@ -102,6 +113,10 @@ enum ChatModelSelection: String, CaseIterable, Identifiable {
             return String(localized: "claudeChat.model.default", defaultValue: "Default")
         case .fable5:
             return String(localized: "claudeChat.model.fable5", defaultValue: "Fable 5")
+        case .opus5:
+            return String(localized: "claudeChat.model.opus5", defaultValue: "Opus 5")
+        case .opus5Long:
+            return String(localized: "claudeChat.model.opus5Long", defaultValue: "Opus 5 (1M)")
         case .opus48:
             return String(localized: "claudeChat.model.opus48", defaultValue: "Opus 4.8")
         case .opus48Long:
@@ -110,6 +125,8 @@ enum ChatModelSelection: String, CaseIterable, Identifiable {
             return String(localized: "claudeChat.model.opus", defaultValue: "Opus 4.7")
         case .opusLong:
             return String(localized: "claudeChat.model.opusLong", defaultValue: "Opus 4.7 (1M)")
+        case .sonnet5:
+            return String(localized: "claudeChat.model.sonnet5", defaultValue: "Sonnet 5")
         case .sonnet:
             return String(localized: "claudeChat.model.sonnet", defaultValue: "Sonnet 4.6")
         case .haiku:
@@ -121,9 +138,9 @@ enum ChatModelSelection: String, CaseIterable, Identifiable {
         switch self {
         case .default: return "wand.and.stars"
         case .fable5: return "crown.fill"
-        case .opus48, .opus: return "sparkles"
-        case .opus48Long, .opusLong: return "infinity"
-        case .sonnet: return "circle.hexagongrid"
+        case .opus5, .opus48, .opus: return "sparkles"
+        case .opus5Long, .opus48Long, .opusLong: return "infinity"
+        case .sonnet5, .sonnet: return "circle.hexagongrid"
         case .haiku: return "leaf"
         }
     }
