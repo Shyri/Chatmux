@@ -51,6 +51,11 @@ enum BackgroundTaskPhase: Equatable {
 /// reports today are `connected`, `failed`, and `needs-auth`; we keep
 /// the raw string around so the UI can colour-code any future addition
 /// without code changes.
+///
+/// Servers the CLI rejected while validating `--mcp-config` arrive in a
+/// separate `mcp_server_errors` array (Claude Code 2.1.219) and are folded
+/// in here too, carrying their reason as the status (`invalid_config`,
+/// `unknown_type`, …).
 struct McpServerInitStatus: Equatable {
     let name: String
     let status: String
@@ -166,7 +171,8 @@ extension ClaudeStreamEvent {
         let model = dict["model"] as? String
         let cwd = dict["cwd"] as? String
         if subtype == "init" {
-            let servers = parseMcpServers(dict["mcp_servers"])
+            var servers = parseMcpServers(dict["mcp_servers"])
+            servers.append(contentsOf: parseMcpServerErrors(dict["mcp_server_errors"], alreadyListed: servers))
             return .systemInit(sessionId: sessionId, model: model, cwd: cwd, mcpServers: servers)
         }
         if subtype == "task_started" || subtype == "task_updated" || subtype == "task_notification" {
@@ -241,6 +247,39 @@ extension ClaudeStreamEvent {
             guard let name = item["name"] as? String, !name.isEmpty else { return nil }
             let status = (item["status"] as? String) ?? "unknown"
             let error = (item["error"] as? String) ?? (item["message"] as? String)
+            return McpServerInitStatus(name: name, status: status, error: error)
+        }
+    }
+
+    /// Pull the `mcp_server_errors` array out of a `system/init` dict and
+    /// fold it into the same status list the panel already renders.
+    ///
+    /// Added in Claude Code 2.1.219: entries the CLI dropped while validating
+    /// `--mcp-config` never reach `mcp_servers` at all, so before this they
+    /// were invisible — a server with a typo in its config simply didn't
+    /// exist as far as the panel was concerned. Verified shape against
+    /// claude-code 2.1.220:
+    ///
+    /// ```json
+    /// {"name":"broken-type", "type":"unknown_type",
+    ///  "message":"Skipped — unknown MCP server type \"nonsense\" for server …"}
+    /// ```
+    ///
+    /// `type` is reported as the status so the UI colour-codes it like any
+    /// other non-`connected` state, and entries already present in
+    /// `mcp_servers` are skipped so a future CLI that lists them in both
+    /// places can't produce duplicate rows.
+    private static func parseMcpServerErrors(
+        _ raw: Any?,
+        alreadyListed: [McpServerInitStatus]
+    ) -> [McpServerInitStatus] {
+        guard let array = raw as? [[String: Any]] else { return [] }
+        let known = Set(alreadyListed.map(\.name))
+        return array.compactMap { item in
+            guard let name = item["name"] as? String, !name.isEmpty else { return nil }
+            guard !known.contains(name) else { return nil }
+            let status = (item["type"] as? String) ?? "invalid-config"
+            let error = (item["message"] as? String) ?? (item["error"] as? String)
             return McpServerInitStatus(name: name, status: status, error: error)
         }
     }

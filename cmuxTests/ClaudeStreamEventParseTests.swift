@@ -78,6 +78,64 @@ import Testing
         #expect(servers == [McpServerInitStatus(name: "x", status: "failed", error: "alt")])
     }
 
+    /// Claude Code 2.1.219 reports servers it dropped during `--mcp-config`
+    /// validation in a separate `mcp_server_errors` array — they never appear
+    /// in `mcp_servers`, so without folding them in a mistyped server config
+    /// is silently invisible in the panel. Payload captured from a real
+    /// claude-code 2.1.220 run against a deliberately broken config.
+    @Test func systemInitFoldsRejectedServersFromMcpServerErrors() throws {
+        let line = """
+        {"type":"system","subtype":"init","session_id":"s","mcp_servers":[],\
+        "mcp_server_errors":[\
+        {"name":"broken-no-transport","type":"invalid_config","message":"Skipped — command: expected string"},\
+        {"name":"broken-type","type":"unknown_type","message":"Skipped — unknown MCP server type"}]}
+        """
+        let event = try #require(try ClaudeStreamEvent.parse(line: line))
+        guard case let .systemInit(_, _, _, servers) = event else {
+            Issue.record("expected .systemInit, got \(event)")
+            return
+        }
+        #expect(servers == [
+            McpServerInitStatus(
+                name: "broken-no-transport",
+                status: "invalid_config",
+                error: "Skipped — command: expected string"
+            ),
+            McpServerInitStatus(
+                name: "broken-type",
+                status: "unknown_type",
+                error: "Skipped — unknown MCP server type"
+            ),
+        ])
+    }
+
+    /// A future CLI that lists a rejected server in both arrays must not
+    /// produce two rows for it.
+    @Test func systemInitDoesNotDuplicateServersListedInBothArrays() throws {
+        let line = """
+        {"type":"system","subtype":"init","session_id":"s",\
+        "mcp_servers":[{"name":"dup","status":"failed","error":"boom"}],\
+        "mcp_server_errors":[{"name":"dup","type":"invalid_config","message":"also here"}]}
+        """
+        let event = try #require(try ClaudeStreamEvent.parse(line: line))
+        guard case let .systemInit(_, _, _, servers) = event else {
+            Issue.record("expected .systemInit")
+            return
+        }
+        #expect(servers == [McpServerInitStatus(name: "dup", status: "failed", error: "boom")])
+    }
+
+    /// Older CLIs simply omit the key; the list must stay exactly as before.
+    @Test func systemInitWithoutMcpServerErrorsIsUnchanged() throws {
+        let line = #"{"type":"system","subtype":"init","session_id":"s","mcp_servers":[{"name":"x","status":"connected"}]}"#
+        let event = try #require(try ClaudeStreamEvent.parse(line: line))
+        guard case let .systemInit(_, _, _, servers) = event else {
+            Issue.record("expected .systemInit")
+            return
+        }
+        #expect(servers == [McpServerInitStatus(name: "x", status: "connected", error: nil)])
+    }
+
     @Test func unknownSystemSubtypeMapsToOther() throws {
         let event = try #require(try ClaudeStreamEvent.parse(line: #"{"type":"system","subtype":"weird"}"#))
         guard case let .other(typeName) = event else {
