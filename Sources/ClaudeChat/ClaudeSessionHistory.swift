@@ -150,7 +150,10 @@ enum ClaudeSessionHistory {
             let contentArray = message["content"] as? [[String: Any]] ?? []
             let blocks = contentArray.compactMap { decodeTranscriptContentBlock($0) }
             guard !blocks.isEmpty else { return nil }
-            return ChatMessage(role: .assistant, blocks: blocks)
+            // Claude Code 2.1.212 records the reasoning effort on every
+            // assistant line; older transcripts simply omit the key.
+            let effort = (obj["effort"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            return ChatMessage(role: .assistant, blocks: blocks, effort: effort)
         default:
             return nil
         }

@@ -97,6 +97,13 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
     /// we use this to coalesce them back into one ChatMessage so
     /// adjacent tool_use blocks fall into the same batch.
     var claudeMessageId: String?
+    /// Reasoning effort claude ran this message at (`low`, `medium`,
+    /// `high`, `xhigh`, …). Claude Code records it on every assistant
+    /// line of the session transcript as of 2.1.212, so a rehydrated
+    /// conversation can show the effort each answer was produced with
+    /// even when the picker has since been changed. `nil` for messages
+    /// from older transcripts, and for anything the user sent.
+    var effort: String?
 
     init(
         id: UUID = UUID(),
@@ -106,6 +113,7 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
         isCollapsedByDefault: Bool = false,
         slashCommandName: String? = nil,
         claudeMessageId: String? = nil,
+        effort: String? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -115,6 +123,7 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
         self.isCollapsedByDefault = isCollapsedByDefault
         self.slashCommandName = slashCommandName
         self.claudeMessageId = claudeMessageId
+        self.effort = effort
         self.createdAt = createdAt
     }
 

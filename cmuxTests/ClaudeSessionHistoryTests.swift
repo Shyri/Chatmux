@@ -77,6 +77,33 @@ import Testing
         #expect(messages[0].blocks == [.text("visible")])
     }
 
+    /// Claude Code 2.1.212 records the reasoning effort on each assistant
+    /// line of the transcript, so a rehydrated conversation can show what
+    /// each answer was produced with. Shape taken from a real 2.1.220
+    /// transcript under ~/.claude/projects.
+    @Test func decodeTranscriptCarriesAssistantEffort() {
+        let jsonl = """
+        {"type":"assistant","effort":"xhigh","message":{"content":[{"type":"text","text":"answer"}]}}
+        """
+        let messages = ClaudeSessionHistory.decodeTranscript(text: jsonl)
+        #expect(messages.count == 1)
+        #expect(messages[0].effort == "xhigh")
+    }
+
+    /// Transcripts written before 2.1.212 have no `effort` key, and an empty
+    /// value is not a level — both must read as "unknown", not as a chip
+    /// rendering an empty string.
+    @Test func decodeTranscriptLeavesEffortNilWhenAbsentOrEmpty() {
+        let jsonl = """
+        {"type":"assistant","message":{"content":[{"type":"text","text":"old"}]}}
+        {"type":"assistant","effort":"","message":{"content":[{"type":"text","text":"blank"}]}}
+        {"type":"user","message":{"content":"mine"}}
+        """
+        let messages = ClaudeSessionHistory.decodeTranscript(text: jsonl)
+        #expect(messages.count == 3)
+        #expect(messages.allSatisfy { $0.effort == nil })
+    }
+
     @Test func decodeTranscriptSkipsMetadataAndMalformedLines() {
         let jsonl = """
         {"type":"file-history-snapshot","snapshot":{}}
