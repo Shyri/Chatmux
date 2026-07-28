@@ -1,0 +1,88 @@
+{
+  "lastProcessedVersion": "2.1.220",
+  "lastRunAt": "2026-07-28",
+  "entries": [
+    {
+      "id": "2.1.219#7dccf8",
+      "version": "2.1.219",
+      "summary": "Added Claude Opus 5 (claude-opus-5), now the default Opus model",
+      "surface": "Sources/Panels/ClaudeChatPanel.swift:ChatModelSelection",
+      "decision": "implemented",
+      "commit": "ce590de4fb"
+    },
+    {
+      "id": "2.1.197#a87426",
+      "version": "2.1.197",
+      "summary": "Introducing Claude Sonnet 5: now the default model in Claude Code, native 1M context",
+      "surface": "Sources/Panels/ClaudeChatPanel.swift:ChatModelSelection",
+      "decision": "implemented",
+      "commit": "ce590de4fb"
+    },
+    {
+      "id": "2.1.212#f8deae",
+      "version": "2.1.212",
+      "summary": "MCP tool calls running longer than 2 minutes now move to the background automatically",
+      "surface": "Sources/ClaudeChat/ClaudeChatRunner.swift:mcpToolEnvironmentOverrides",
+      "decision": "implemented",
+      "commit": "b221e960f5",
+      "note": "Our approval cards are MCP tool calls and block on the user; threshold raised at spawn time. Whether the CLI measures wall-clock or idle time was not verified empirically."
+    },
+    {
+      "id": "2.1.219#5ca906",
+      "version": "2.1.219",
+      "summary": "Added mcp_server_errors to the headless stream-json init event",
+      "surface": "Sources/ClaudeChat/ClaudeStreamEvent.swift:parseMcpServerErrors",
+      "decision": "implemented",
+      "commit": "84b6c8b519"
+    },
+    {
+      "id": "2.1.206#7bfb43",
+      "version": "2.1.206",
+      "summary": "Fixed MCP servers ignoring a per-server request_timeout_ms",
+      "surface": "Sources/ClaudeChat/McpServerCatalog.swift:McpServerExtras",
+      "decision": "implemented",
+      "commit": "33ee2bbf27",
+      "note": "Turned out to be a data-loss bug on our side: every unmodeled key was dropped when rewriting .mcp.json."
+    },
+    {
+      "id": "2.1.212#8c88e9",
+      "version": "2.1.212",
+      "summary": "Changed session transcripts to record the reasoning effort level on each assistant message",
+      "surface": "Sources/ClaudeChat/ClaudeSessionHistory.swift",
+      "decision": "implemented",
+      "commit": "f3fa314be7"
+    },
+    {
+      "id": "2.1.211#39f827",
+      "version": "2.1.211",
+      "summary": "Added --forward-subagent-text to include subagent text and thinking in stream-json output",
+      "surface": "Sources/ClaudeChat/ClaudeChatRunner.swift, ClaudeStreamEvent.swift:SubagentOrigin",
+      "decision": "implemented",
+      "commit": "166cfe39be"
+    },
+    {
+      "id": "2.1.219#affef1",
+      "version": "2.1.219",
+      "summary": "Added nested subagent forwarding in stream-json (depth 2+), keyed by spawning Agent tool_use id",
+      "surface": "Sources/ClaudeChat/ClaudeStreamEvent.swift:parseSubagentOrigin",
+      "decision": "implemented",
+      "commit": "166cfe39be"
+    },
+    {
+      "id": "2.1.212#016da9",
+      "version": "2.1.212",
+      "summary": "Changed headless/SDK sessions to apply a set_model control request mid-turn",
+      "surface": "Sources/ClaudeChat/ClaudeChatRunner.swift:applyModelChangeInPlace",
+      "decision": "implemented",
+      "commit": "78da0ee426"
+    },
+    {
+      "id": "2.1.200#216061",
+      "version": "2.1.200",
+      "summary": "Changed the \"default\" permission mode to \"Manual\" across the CLI; manual accepted alongside default",
+      "surface": "Sources/Panels/ClaudeChatPanel.swift:ChatPermissionMode",
+      "decision": "not-applicable",
+      "note": "ChatPermissionMode.normal still sends `default`, which the CLI keeps accepting. Renaming our own label to \"Manual\" is cosmetic; revisit only if the CLI drops `default`."
+    }
+  ]
+}
