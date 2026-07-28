@@ -147,7 +147,8 @@ import Testing
             let withEmpty = SlashCommandRegistry.availableCommands(cwd: cwd.path, reportedByCLI: [])
             let withoutArg = SlashCommandRegistry.availableCommands(cwd: cwd.path)
             #expect(withEmpty.map(\.id) == withoutArg.map(\.id))
-            #expect(withEmpty.allSatisfy { $0.source == .builtin } || !withEmpty.isEmpty)
+            #expect(withEmpty.contains { $0.name == "clear" })
+            #expect(withEmpty.contains { $0.source == .cliReported } == false)
         }
     }
 
