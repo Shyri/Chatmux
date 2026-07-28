@@ -42,6 +42,51 @@ struct McpServerConfig: Identifiable, Equatable {
     let name: String
     let scope: Scope
     let transport: Transport
+    /// Keys of the entry we don't model explicitly, kept verbatim.
+    var extras: McpServerExtras = .empty
+}
+
+/// The parts of an MCP entry this catalog doesn't model as `Transport`.
+///
+/// They exist because the CLI's schema is wider than the four fields the
+/// editor exposes, and it keeps growing: `request_timeout_ms` (honoured for
+/// `--mcp-config` and `.mcp.json` entries since Claude Code 2.1.206) is one
+/// example, and anything added after this comment is another. Dropping them
+/// on write silently rewrote the user's config — a slow server with a raised
+/// timeout would quietly fall back to the CLI's 60 s default the first time
+/// any server in the file was edited.
+///
+/// Equality is by canonical JSON so `McpServerConfig` stays `Equatable`.
+struct McpServerExtras: Equatable {
+    let raw: [String: Any]
+
+    static let empty = McpServerExtras(raw: [:])
+
+    var isEmpty: Bool { raw.isEmpty }
+
+    /// Keys that `Transport` already owns; never carried as extras so a
+    /// stale copy can't shadow the edited transport on write.
+    static let transportOwnedKeys: Set<String> = [
+        "type", "command", "args", "env", "url", "headers"
+    ]
+
+    init(raw: [String: Any]) {
+        self.raw = raw.filter { !Self.transportOwnedKeys.contains($0.key) }
+    }
+
+    private var canonical: Data? {
+        try? JSONSerialization.data(withJSONObject: raw, options: [.sortedKeys])
+    }
+
+    static func == (lhs: McpServerExtras, rhs: McpServerExtras) -> Bool {
+        if lhs.raw.isEmpty && rhs.raw.isEmpty { return true }
+        guard let a = lhs.canonical, let b = rhs.canonical else {
+            // Non-JSON payloads can't come from a parsed config file; treat
+            // them as distinct rather than silently equal.
+            return false
+        }
+        return a == b
+    }
 }
 
 /// Connection state for a single MCP server, derived from the latest
@@ -139,7 +184,7 @@ enum McpServerCatalog {
         case .project:
             try mutate(at: projectConfigURL(cwd: cwd)) { root in
                 var servers = root["mcpServers"] as? [String: Any] ?? [:]
-                servers[server.name] = encodeTransport(server.transport)
+                servers[server.name] = encodeServer(server)
                 root["mcpServers"] = servers
             }
         case .userLocal:
@@ -147,7 +192,7 @@ enum McpServerCatalog {
                 var projects = root["projects"] as? [String: Any] ?? [:]
                 var proj = projects[cwd] as? [String: Any] ?? [:]
                 var servers = proj["mcpServers"] as? [String: Any] ?? [:]
-                servers[server.name] = encodeTransport(server.transport)
+                servers[server.name] = encodeServer(server)
                 proj["mcpServers"] = servers
                 projects[cwd] = proj
                 root["projects"] = projects
@@ -193,10 +238,10 @@ enum McpServerCatalog {
     static func mergedForRuntime(cwd: String, builtinEndpoint: URL) -> [String: Any] {
         var merged: [String: Any] = [:]
         for server in readUserLocal(cwd: cwd) {
-            merged[server.name] = encodeTransport(server.transport)
+            merged[server.name] = encodeServer(server)
         }
         for server in readProject(cwd: cwd) {
-            merged[server.name] = encodeTransport(server.transport)
+            merged[server.name] = encodeServer(server)
         }
         merged["cmux"] = [
             "type": "http",
@@ -211,7 +256,12 @@ enum McpServerCatalog {
         raw.compactMap { (name, value) -> McpServerConfig? in
             guard let dict = value as? [String: Any] else { return nil }
             guard let transport = decodeTransport(dict) else { return nil }
-            return McpServerConfig(name: name, scope: scope, transport: transport)
+            return McpServerConfig(
+                name: name,
+                scope: scope,
+                transport: transport,
+                extras: McpServerExtras(raw: dict)
+            )
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
@@ -237,6 +287,17 @@ enum McpServerCatalog {
         default:
             return nil
         }
+    }
+
+    /// Serialize one entry back to its `.mcp.json` / `--mcp-config` shape:
+    /// the transport this catalog owns, plus every key it doesn't model,
+    /// carried through untouched.
+    private static func encodeServer(_ server: McpServerConfig) -> [String: Any] {
+        var dict = encodeTransport(server.transport)
+        for (key, value) in server.extras.raw {
+            dict[key] = value
+        }
+        return dict
     }
 
     private static func encodeTransport(_ transport: McpServerConfig.Transport) -> [String: Any] {

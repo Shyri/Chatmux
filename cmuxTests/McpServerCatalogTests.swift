@@ -193,6 +193,73 @@ import Testing
         }
     }
 
+    /// Claude Code 2.1.206 made `request_timeout_ms` effective for
+    /// `--mcp-config` and `.mcp.json` entries. It isn't part of `Transport`,
+    /// so re-writing the file must carry it through instead of dropping it
+    /// back to the CLI's 60 s default.
+    @Test func upsertPreservesPerServerFieldsTheCatalogDoesNotModel() throws {
+        try withTemporaryDirectory { cwd in
+            let url = cwd.appendingPathComponent(".mcp.json")
+            try writeJSON([
+                "mcpServers": [
+                    "slow": [
+                        "type": "http",
+                        "url": "https://example.test/mcp",
+                        "request_timeout_ms": 300_000
+                    ]
+                ]
+            ], to: url)
+
+            let loaded = try #require(McpServerCatalog.readProject(cwd: cwd.path).first)
+            #expect(loaded.extras.raw["request_timeout_ms"] as? Int == 300_000)
+
+            // Editing the entry must not silently drop the timeout.
+            try McpServerCatalog.upsert(loaded, cwd: cwd.path)
+
+            let data = try Data(contentsOf: url)
+            let root = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+            let servers = try #require(root["mcpServers"] as? [String: Any])
+            let slow = try #require(servers["slow"] as? [String: Any])
+            #expect(slow["request_timeout_ms"] as? Int == 300_000)
+            #expect(slow["url"] as? String == "https://example.test/mcp")
+        }
+    }
+
+    /// The same fields have to reach the CLI, not just survive on disk.
+    @Test func mergedForRuntimeCarriesUnmodeledPerServerFields() throws {
+        try withTemporaryDirectory { cwd in
+            try writeJSON([
+                "mcpServers": [
+                    "slow": [
+                        "type": "http",
+                        "url": "https://example.test/mcp",
+                        "request_timeout_ms": 300_000
+                    ]
+                ]
+            ], to: cwd.appendingPathComponent(".mcp.json"))
+
+            let merged = McpServerCatalog.mergedForRuntime(
+                cwd: cwd.path,
+                builtinEndpoint: URL(string: "http://127.0.0.1:1234/mcp")!
+            )
+            let slow = try #require(merged["slow"] as? [String: Any])
+            #expect(slow["request_timeout_ms"] as? Int == 300_000)
+        }
+    }
+
+    /// Extras must never shadow the transport being written: an edit that
+    /// changes the URL has to win over the copy read from disk.
+    @Test func transportOwnedKeysAreNeverCarriedAsExtras() throws {
+        let extras = McpServerExtras(raw: [
+            "url": "https://stale.test",
+            "type": "http",
+            "request_timeout_ms": 1000
+        ])
+        #expect(extras.raw["url"] == nil)
+        #expect(extras.raw["type"] == nil)
+        #expect(extras.raw["request_timeout_ms"] as? Int == 1000)
+    }
+
     @Test func removeProjectIsNoOpWhenMissing() throws {
         try withTemporaryDirectory { cwd in
             // No file yet — should not throw.
