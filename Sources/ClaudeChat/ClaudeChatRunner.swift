@@ -124,6 +124,9 @@ final class ClaudeChatRunner {
     /// `nil` here means "launched without `--effort`" so the CLI uses
     /// whatever it considers default. A mismatch triggers a respawn.
     private var launchedEffort: String?
+    /// `claude --version` of the binary backing the live process. Nil when
+    /// it couldn't be probed, which every gate reads as "assume old".
+    private var launchedCliVersion: String?
     private let processQueue = DispatchQueue(label: "com.cmux.claudechat.runner", qos: .userInitiated)
 
     /// Callbacks for the currently-running process. Replaced on each
@@ -233,6 +236,13 @@ final class ClaudeChatRunner {
         // request that restores that, so fall back to a respawn without a
         // `--model` flag.
         guard let model, !model.isEmpty else { return false }
+        // On an older CLI the request comes back as an "Unsupported control
+        // request subtype" error and the model silently stays put. Respawn
+        // instead, which is what always worked.
+        guard Self.version(
+            launchedCliVersion,
+            isAtLeast: MinimumVersion.setModelControlRequest
+        ) else { return false }
         guard let stdin = stdinHandle else { return false }
         guard let line = Self.makeSetModelControlRequestLine(
             model: model,
@@ -449,22 +459,29 @@ final class ClaudeChatRunner {
         mcpConfigPath: String?,
         permissionPromptTool: String?,
         appendSystemPrompt: String?,
-        sessionId: String?
+        sessionId: String?,
+        cliVersion: String? = nil
     ) -> [String] {
         var claudeArguments: [String] = [
             "-p",
             "--input-format", "stream-json",
             "--output-format", "stream-json",
-            "--verbose",
-            // Without this the panel goes silent for the whole length of an
-            // Agent call — subagents run in the background by default since
-            // Claude Code 2.1.198, and their text is dropped from the stream
-            // unless asked for (2.1.211; nested spawns since 2.1.219). The
-            // forwarded messages are tagged with `parent_tool_use_id`, which
-            // is what keeps them out of the lead's tool bookkeeping.
-            "--forward-subagent-text",
-            "--permission-mode", permissionMode
+            "--verbose"
         ]
+        // Without this the panel goes silent for the whole length of an
+        // Agent call — subagents run in the background by default since
+        // Claude Code 2.1.198, and their text is dropped from the stream
+        // unless asked for (2.1.211; nested spawns since 2.1.219). The
+        // forwarded messages are tagged with `parent_tool_use_id`, which is
+        // what keeps them out of the lead's tool bookkeeping.
+        //
+        // Strictly version-gated: an unknown flag makes `claude` exit 1
+        // before the session starts, so sending it blind would take the
+        // whole panel down on an older CLI.
+        if version(cliVersion, isAtLeast: MinimumVersion.forwardSubagentText) {
+            claudeArguments.append("--forward-subagent-text")
+        }
+        claudeArguments += ["--permission-mode", permissionMode]
         if let model, !model.isEmpty {
             claudeArguments += ["--model", model]
         }
@@ -508,6 +525,10 @@ final class ClaudeChatRunner {
         let stderrPipe = Pipe()
         let stdinPipe = Pipe()
 
+        // Probed once per app run and cached; drives both the argv gate
+        // below and the `set_model` gate in `applyModelChangeInPlace`.
+        launchedCliVersion = Self.detectVersion(claudePath: claudePath)
+
         let claudeArguments = Self.buildClaudeArguments(
             permissionMode: permissionMode,
             model: model,
@@ -515,7 +536,8 @@ final class ClaudeChatRunner {
             mcpConfigPath: mcpConfigPath,
             permissionPromptTool: permissionPromptTool,
             appendSystemPrompt: appendSystemPrompt,
-            sessionId: sessionId
+            sessionId: sessionId,
+            cliVersion: launchedCliVersion
         )
         let (executableURL, processArguments) = ClaudeLoginShellWrapper.wrap(
             claudePath: claudePath,
@@ -671,6 +693,110 @@ final class ClaudeChatRunner {
         }
     }
 
+    // MARK: - CLI feature gating
+
+    /// Minimum `claude` version for each flag/control request we only send
+    /// when the binary understands it.
+    ///
+    /// The two failure modes are not symmetric, which is why the argv side
+    /// has to be gated and the stdin side merely should be:
+    ///
+    /// - An unknown **flag** is fatal. `claude -p --nope` exits 1 with
+    ///   `error: unknown option` before doing anything, so shipping a flag
+    ///   unconditionally breaks the whole panel on an older CLI.
+    /// - An unknown **control request** is not. The CLI answers
+    ///   `{"subtype":"error","error":"Unsupported control request subtype: …"}`
+    ///   and keeps running, so the worst case is a silent no-op.
+    ///
+    /// Both verified against claude-code 2.1.220.
+    enum MinimumVersion {
+        /// `--forward-subagent-text` (Claude Code 2.1.211).
+        static let forwardSubagentText = "2.1.211"
+        /// `set_model` control request (Claude Code 2.1.212).
+        static let setModelControlRequest = "2.1.212"
+    }
+
+    /// Compare dotted numeric versions component-wise. A `nil` or
+    /// unparseable version reads as "older than everything", so an
+    /// undetectable CLI falls back to the pre-gating behaviour rather than
+    /// gambling on a flag that could kill the process.
+    static func version(_ version: String?, isAtLeast minimum: String) -> Bool {
+        guard let version else { return false }
+        let lhs = version.split(separator: ".").map { Int($0) ?? -1 }
+        let rhs = minimum.split(separator: ".").map { Int($0) ?? -1 }
+        guard !lhs.contains(-1), !lhs.isEmpty else { return false }
+        for index in 0..<max(lhs.count, rhs.count) {
+            let l = index < lhs.count ? lhs[index] : 0
+            let r = index < rhs.count ? rhs[index] : 0
+            if l != r { return l > r }
+        }
+        return true
+    }
+
+    /// `claude --version` for the resolved binary, cached for the lifetime
+    /// of the app. Returns nil when the probe fails or the output doesn't
+    /// carry a version — callers treat that as "assume old".
+    static func detectVersion(claudePath: String) -> String? {
+        cacheLock.lock()
+        if let cached = cachedVersion {
+            cacheLock.unlock()
+            return cached.isEmpty ? nil : cached
+        }
+        cacheLock.unlock()
+
+        let resolved = probeVersion(claudePath: claudePath)
+        cacheLock.lock()
+        cachedVersion = resolved ?? ""
+        cacheLock.unlock()
+        return resolved
+    }
+
+    private static func probeVersion(claudePath: String) -> String? {
+        guard FileManager.default.isExecutableFile(atPath: claudePath) else { return nil }
+        let probe = Process()
+        let stdoutPipe = Pipe()
+        probe.executableURL = URL(fileURLWithPath: claudePath)
+        probe.arguments = ["--version"]
+        probe.standardOutput = stdoutPipe
+        probe.standardError = Pipe()
+        do {
+            try probe.run()
+        } catch {
+            return nil
+        }
+        let timeoutItem = DispatchWorkItem { [weak probe] in
+            guard let probe, probe.isRunning else { return }
+            probe.terminate()
+        }
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(
+            deadline: .now() + probeTimeout,
+            execute: timeoutItem
+        )
+        probe.waitUntilExit()
+        timeoutItem.cancel()
+        guard probe.terminationStatus == 0 else { return nil }
+        let stdout = String(
+            data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(),
+            encoding: .utf8
+        ) ?? ""
+        return parseVersion(fromVersionOutput: stdout)
+    }
+
+    /// `claude --version` prints e.g. `2.1.220 (Claude Code)`.
+    static func parseVersion(fromVersionOutput output: String) -> String? {
+        let scalars = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        var current = ""
+        for character in scalars {
+            if character.isNumber || character == "." {
+                current.append(character)
+            } else if !current.isEmpty {
+                break
+            }
+        }
+        let trimmed = current.trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        return trimmed.contains(".") ? trimmed : nil
+    }
+
     // MARK: - Environment overrides
 
     /// Environment applied to the spawned `claude` unless the user already
@@ -693,6 +819,8 @@ final class ClaudeChatRunner {
 
     private static var cachedClaudePath: String?
     private static var cachedUserPath: String?
+    /// `""` means "probed and unknown"; nil means "not probed yet".
+    private static var cachedVersion: String?
     private static let cacheLock = NSLock()
 
     /// Expose the resolved binary path so the chat panel can spawn

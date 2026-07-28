@@ -20,7 +20,8 @@ import Testing
         mcp: String? = nil,
         promptTool: String? = nil,
         appendSystemPrompt: String? = nil,
-        sessionId: String? = nil
+        sessionId: String? = nil,
+        cliVersion: String? = "2.1.220"
     ) -> [String] {
         ClaudeChatRunner.buildClaudeArguments(
             permissionMode: mode,
@@ -29,7 +30,8 @@ import Testing
             mcpConfigPath: mcp,
             permissionPromptTool: promptTool,
             appendSystemPrompt: appendSystemPrompt,
-            sessionId: sessionId
+            sessionId: sessionId,
+            cliVersion: cliVersion
         )
     }
 
@@ -118,6 +120,44 @@ import Testing
         #expect(milliseconds != nil)
         // Comfortably beyond the CLI's 2-minute default.
         #expect((milliseconds ?? 0) >= 60 * 60 * 1000)
+    }
+
+    /// `--forward-subagent-text` landed in Claude Code 2.1.211. An unknown
+    /// flag is fatal — `claude -p --nope` exits 1 with "unknown option"
+    /// before the session starts — so sending it to an older binary takes
+    /// the entire panel down rather than degrading.
+    @Test func forwardSubagentTextIsOnlySentToVersionsThatKnowIt() {
+        #expect(build(cliVersion: "2.1.220").contains("--forward-subagent-text"))
+        #expect(build(cliVersion: "2.1.211").contains("--forward-subagent-text"))
+        #expect(build(cliVersion: "2.1.210").contains("--forward-subagent-text") == false)
+        #expect(build(cliVersion: "2.0.999").contains("--forward-subagent-text") == false)
+    }
+
+    /// An undetectable version has to read as "old": losing subagent text is
+    /// recoverable, a CLI that won't start is not.
+    @Test func unknownCliVersionOmitsTheGatedFlag() {
+        #expect(build(cliVersion: nil).contains("--forward-subagent-text") == false)
+        #expect(build(cliVersion: "").contains("--forward-subagent-text") == false)
+        #expect(build(cliVersion: "not-a-version").contains("--forward-subagent-text") == false)
+    }
+
+    @Test func versionComparisonIsNumericNotLexicographic() {
+        // The trap: "2.1.9" > "2.1.10" as strings.
+        #expect(ClaudeChatRunner.version("2.1.211", isAtLeast: "2.1.211"))
+        #expect(ClaudeChatRunner.version("2.1.220", isAtLeast: "2.1.211"))
+        #expect(ClaudeChatRunner.version("2.2.0", isAtLeast: "2.1.211"))
+        #expect(ClaudeChatRunner.version("3.0.0", isAtLeast: "2.1.211"))
+        #expect(ClaudeChatRunner.version("2.1.9", isAtLeast: "2.1.211") == false)
+        #expect(ClaudeChatRunner.version("2.1.99", isAtLeast: "2.1.211") == false)
+        #expect(ClaudeChatRunner.version("2.1", isAtLeast: "2.1.0"))
+        #expect(ClaudeChatRunner.version("2.1", isAtLeast: "2.1.1") == false)
+    }
+
+    @Test func versionIsParsedFromTheCliBanner() {
+        #expect(ClaudeChatRunner.parseVersion(fromVersionOutput: "2.1.220 (Claude Code)") == "2.1.220")
+        #expect(ClaudeChatRunner.parseVersion(fromVersionOutput: "  2.1.220 (Claude Code)\n") == "2.1.220")
+        #expect(ClaudeChatRunner.parseVersion(fromVersionOutput: "garbage") == nil)
+        #expect(ClaudeChatRunner.parseVersion(fromVersionOutput: "") == nil)
     }
 
     /// Claude Code 2.1.212 lets a headless session switch models mid-flight
