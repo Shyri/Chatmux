@@ -70,8 +70,9 @@ GitHub. Each line comes out as `` - `<id>` <text>  `[signals]` `` — the stable
 keys decisions on. Never read the raw changelog file directly; it is ~500 KB.
 
 The default markdown format is the one to use. `--format json` carries the same fields at ~1.6× the size and
-is only worth it for programmatic post-processing. A 30-release first run is ~105 KB; an incremental run of a
-few releases is a fraction of that. `--signals-only` roughly halves it by dropping unmatched bullets, at the
+is only worth it for programmatic post-processing. A 30-release first run is ~105 KB — past the inline tool
+output cap, so redirect it to a file in the scratchpad and read it in pages rather than fighting a truncated
+preview. An incremental run of a few releases is a fraction of that and comes back inline. `--signals-only` roughly halves it by dropping unmatched bullets, at the
 cost of possibly hiding an entry that used unexpected wording — acceptable for a wide `--all` sweep, not for
 a normal incremental run.
 
