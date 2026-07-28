@@ -2312,7 +2312,10 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             // would let somebody else's Bash or EnterWorktree move this
             // session's UI. Render the text and stop.
             if let subagent {
-                let textOnly = blocks.filter { if case .text = $0 { return true } else { return false } }
+                let textOnly = blocks.filter { block -> Bool in
+                    if case .text = block { return true }
+                    return false
+                }
                 guard !textOnly.isEmpty else { return }
                 enqueueStreamedMessage(ChatMessage(
                     role: .assistant,
