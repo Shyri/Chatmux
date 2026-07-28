@@ -58,7 +58,8 @@
       "summary": "Added --forward-subagent-text to include subagent text and thinking in stream-json output",
       "surface": "Sources/ClaudeChat/ClaudeChatRunner.swift, ClaudeStreamEvent.swift:SubagentOrigin",
       "decision": "implemented",
-      "commit": "166cfe39be"
+      "commit": "166cfe39be",
+      "note": "Shipped unconditionally at first; an unknown flag makes claude exit 1, so it is now gated on a probed `claude --version` >= 2.1.211 (1f2db5ea61)."
     },
     {
       "id": "2.1.219#affef1",
@@ -74,7 +75,8 @@
       "summary": "Changed headless/SDK sessions to apply a set_model control request mid-turn",
       "surface": "Sources/ClaudeChat/ClaudeChatRunner.swift:applyModelChangeInPlace",
       "decision": "implemented",
-      "commit": "78da0ee426"
+      "commit": "78da0ee426",
+      "note": "Gated on >= 2.1.212 (1f2db5ea61); older CLIs answer 'Unsupported control request subtype'."
     },
     {
       "id": "2.1.200#216061",
@@ -83,6 +85,25 @@
       "surface": "Sources/Panels/ClaudeChatPanel.swift:ChatPermissionMode",
       "decision": "not-applicable",
       "note": "ChatPermissionMode.normal still sends `default`, which the CLI keeps accepting. Renaming our own label to \"Manual\" is cosmetic; revisit only if the CLI drops `default`."
+    },
+    {
+      "id": "exploration#init-slash-commands",
+      "version": "2.1.220",
+      "origin": "exploration",
+      "summary": "The system/init event carries slash_commands, the CLI's own list of every command it recognises",
+      "surface": "Sources/ClaudeChat/SlashCommandRegistry.swift, ClaudeStreamEvent.swift",
+      "decision": "implemented",
+      "commit": "0dea74f894",
+      "note": "Not a changelog entry: found by dumping a real init payload. Skills, plugin commands and CLI built-ins were invisible to the .claude/commands scan."
+    },
+    {
+      "id": "exploration#init-unused-fields",
+      "version": "2.1.220",
+      "origin": "exploration",
+      "summary": "init also carries claude_code_version, capabilities, agents, skills, tools, permissionMode, fast_mode_state",
+      "surface": "Sources/ClaudeChat/ClaudeStreamEvent.swift:parseSystem",
+      "decision": "deferred",
+      "note": "capabilities (interrupt_receipt_v1, msg_lifecycle_v1) would allow feature negotiation without probing --version; agents/skills could drive pickers. Consider grouping the init fields into a struct before adding a sixth associated value."
     }
   ]
 }
