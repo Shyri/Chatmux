@@ -105,6 +105,18 @@ import Testing
         #expect(indices == indices.sorted())
     }
 
+    /// Claude Code 2.1.212 started backgrounding MCP tool calls that run
+    /// longer than two minutes. Our approval cards are MCP tool calls and
+    /// legitimately block for as long as the user takes to answer, so the
+    /// spawn has to raise that threshold well past any human response time.
+    @Test func mcpAutoBackgroundThresholdIsRaisedWellPastHumanResponseTime() {
+        let raw = ClaudeChatRunner.mcpToolEnvironmentOverrides["CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS"]
+        let milliseconds = raw.flatMap(Int.init)
+        #expect(milliseconds != nil)
+        // Comfortably beyond the CLI's 2-minute default.
+        #expect((milliseconds ?? 0) >= 60 * 60 * 1000)
+    }
+
     // Returns the element immediately after `flag`, or nil if absent / last.
     private func adjacentValue(_ args: [String], flag: String) -> String? {
         guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }

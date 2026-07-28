@@ -464,6 +464,9 @@ final class ClaudeChatRunner {
         if let userPath = ClaudeChatRunner.cachedUserPath {
             environment["PATH"] = userPath
         }
+        for (key, value) in ClaudeChatRunner.mcpToolEnvironmentOverrides where environment[key] == nil {
+            environment[key] = value
+        }
         process.environment = environment
 
         stdoutPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
@@ -595,6 +598,24 @@ final class ClaudeChatRunner {
             #endif
         }
     }
+
+    // MARK: - Environment overrides
+
+    /// Environment applied to the spawned `claude` unless the user already
+    /// set the variable themselves.
+    ///
+    /// `CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS`: since Claude Code 2.1.212 an MCP
+    /// tool call running longer than two minutes is moved to the background
+    /// automatically so the session stays usable. That default is wrong for
+    /// us: our approval cards *are* MCP tool calls (`--permission-prompt-tool`
+    /// pointing at `ChatMcpHttpServer`), and they are supposed to block until
+    /// the user answers — which is routinely longer than two minutes if they
+    /// step away. `SseStream` already keeps the call alive against the idle
+    /// timeout; this raises the wall-clock threshold to a day so an approval
+    /// left open is never backgrounded out from under the panel.
+    static let mcpToolEnvironmentOverrides: [String: String] = [
+        "CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS": String(24 * 60 * 60 * 1000)
+    ]
 
     // MARK: - Binary resolution
 
