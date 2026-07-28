@@ -55,7 +55,7 @@ import Testing
         "mcp_servers":[{"name":"cmux","status":"connected"},{"name":"fs","status":"failed","error":"boom"}]}
         """
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .systemInit(sessionId, model, cwd, mcpServers) = event else {
+        guard case let .systemInit(sessionId, model, cwd, mcpServers, slashCommands) = event else {
             Issue.record("expected .systemInit, got \(event)")
             return
         }
@@ -66,12 +66,29 @@ import Testing
             McpServerInitStatus(name: "cmux", status: "connected", error: nil),
             McpServerInitStatus(name: "fs", status: "failed", error: "boom"),
         ])
+        #expect(slashCommands.isEmpty)
+    }
+
+    /// The init event lists every command the CLI recognises — skills and
+    /// plugin commands included — which a scan of `.claude/commands/` can't
+    /// see. Names only; there are no descriptions in the payload.
+    @Test func systemInitCarriesTheCLISlashCommandList() throws {
+        let line = """
+        {"type":"system","subtype":"init","session_id":"s",\
+        "slash_commands":["compact","context","dataviz","__remote-workflow"]}
+        """
+        let event = try #require(try ClaudeStreamEvent.parse(line: line))
+        guard case let .systemInit(_, _, _, _, slashCommands) = event else {
+            Issue.record("expected .systemInit")
+            return
+        }
+        #expect(slashCommands == ["compact", "context", "dataviz", "__remote-workflow"])
     }
 
     @Test func systemInitAcceptsMessageKeyAsErrorBlobFallback() throws {
         let line = #"{"type":"system","subtype":"init","session_id":"s","mcp_servers":[{"name":"x","status":"failed","message":"alt"}]}"#
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .systemInit(_, _, _, servers) = event else {
+        guard case let .systemInit(_, _, _, servers, _) = event else {
             Issue.record("expected .systemInit")
             return
         }
@@ -91,7 +108,7 @@ import Testing
         {"name":"broken-type","type":"unknown_type","message":"Skipped — unknown MCP server type"}]}
         """
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .systemInit(_, _, _, servers) = event else {
+        guard case let .systemInit(_, _, _, servers, _) = event else {
             Issue.record("expected .systemInit, got \(event)")
             return
         }
@@ -118,7 +135,7 @@ import Testing
         "mcp_server_errors":[{"name":"dup","type":"invalid_config","message":"also here"}]}
         """
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .systemInit(_, _, _, servers) = event else {
+        guard case let .systemInit(_, _, _, servers, _) = event else {
             Issue.record("expected .systemInit")
             return
         }
@@ -129,7 +146,7 @@ import Testing
     @Test func systemInitWithoutMcpServerErrorsIsUnchanged() throws {
         let line = #"{"type":"system","subtype":"init","session_id":"s","mcp_servers":[{"name":"x","status":"connected"}]}"#
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .systemInit(_, _, _, servers) = event else {
+        guard case let .systemInit(_, _, _, servers, _) = event else {
             Issue.record("expected .systemInit")
             return
         }

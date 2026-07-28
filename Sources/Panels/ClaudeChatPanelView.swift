@@ -1015,13 +1015,29 @@ struct ClaudeChatPanelView: View {
             }
         }
         .onAppear {
-            slashAllCommands = SlashCommandRegistry.availableCommands(cwd: panel.workingDirectory)
+            slashAllCommands = SlashCommandRegistry.availableCommands(
+                cwd: panel.workingDirectory,
+                reportedByCLI: panel.cliSlashCommands
+            )
             updateSlashPopupForDraft(panel.draft)
         }
         .onChange(of: panel.workingDirectory) { newCwd in
             // The cwd governs which project-scope custom commands the
             // registry includes; refresh on rare changes.
-            slashAllCommands = SlashCommandRegistry.availableCommands(cwd: newCwd)
+            slashAllCommands = SlashCommandRegistry.availableCommands(
+                cwd: newCwd,
+                reportedByCLI: panel.cliSlashCommands
+            )
+            updateSlashPopupForDraft(panel.draft)
+        }
+        .onChange(of: panel.cliSlashCommands) { _ in
+            // Arrives with the first `system/init`, i.e. after the initial
+            // scan. Rebuild so skills and CLI built-ins show up without
+            // waiting for a cwd change or a panel reopen.
+            slashAllCommands = SlashCommandRegistry.availableCommands(
+                cwd: panel.workingDirectory,
+                reportedByCLI: panel.cliSlashCommands
+            )
             updateSlashPopupForDraft(panel.draft)
         }
         .onChange(of: panel.draft) { newValue in
@@ -2438,7 +2454,10 @@ struct ClaudeChatPanelView: View {
         // The list always contains the 7 built-ins once loaded, so an
         // empty array reliably means "not loaded yet".
         if slashAllCommands.isEmpty {
-            slashAllCommands = SlashCommandRegistry.availableCommands(cwd: panel.workingDirectory)
+            slashAllCommands = SlashCommandRegistry.availableCommands(
+                cwd: panel.workingDirectory,
+                reportedByCLI: panel.cliSlashCommands
+            )
         }
         let filtered = SlashCommandRegistry.filter(slashAllCommands, byPrefix: prefix)
         slashFilteredCommands = filtered

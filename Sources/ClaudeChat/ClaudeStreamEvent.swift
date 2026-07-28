@@ -17,7 +17,13 @@ import Foundation
 /// Anything else is mapped to `.other` so future schema additions never
 /// crash the chat.
 enum ClaudeStreamEvent {
-    case systemInit(sessionId: String, model: String?, cwd: String?, mcpServers: [McpServerInitStatus])
+    case systemInit(
+        sessionId: String,
+        model: String?,
+        cwd: String?,
+        mcpServers: [McpServerInitStatus],
+        slashCommands: [String]
+    )
     case assistant(
         messageId: String?,
         blocks: [ChatMessageBlock],
@@ -201,7 +207,17 @@ extension ClaudeStreamEvent {
         if subtype == "init" {
             var servers = parseMcpServers(dict["mcp_servers"])
             servers.append(contentsOf: parseMcpServerErrors(dict["mcp_server_errors"], alreadyListed: servers))
-            return .systemInit(sessionId: sessionId, model: model, cwd: cwd, mcpServers: servers)
+            // The CLI's own list of every command it recognises — skills,
+            // plugin commands and its built-ins included. Far wider than a
+            // scan of `.claude/commands/` can see.
+            let slashCommands = (dict["slash_commands"] as? [String]) ?? []
+            return .systemInit(
+                sessionId: sessionId,
+                model: model,
+                cwd: cwd,
+                mcpServers: servers,
+                slashCommands: slashCommands
+            )
         }
         if subtype == "task_started" || subtype == "task_updated" || subtype == "task_notification" {
             return parseBackgroundTask(dict, subtype: subtype ?? "")

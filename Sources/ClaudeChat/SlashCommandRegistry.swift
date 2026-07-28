@@ -17,6 +17,11 @@ struct SlashCommand: Identifiable, Equatable {
         case userCustom(URL)
         /// Markdown command file under the current project (`<cwd>/.claude/commands/`).
         case projectCustom(URL)
+        /// Reported by the CLI in the `system/init` event's `slash_commands`
+        /// array and backed by no file we can see: skills, plugin commands,
+        /// and the CLI's own built-ins (`/compact`, `/context`, `/usage`…).
+        /// Scanning `.claude/commands/` can never find these.
+        case cliReported
     }
 
     enum Action: Equatable {
@@ -41,6 +46,7 @@ struct SlashCommand: Identifiable, Equatable {
         case .builtin: return "builtin:\(name)"
         case .userCustom(let url): return "user:\(url.path)"
         case .projectCustom(let url): return "project:\(url.path)"
+        case .cliReported: return "cli:\(name)"
         }
     }
 
@@ -51,8 +57,20 @@ struct SlashCommand: Identifiable, Equatable {
 enum SlashCommandRegistry {
     /// Return the full list of commands available given the current chat
     /// `cwd`. Built-ins come first, then project-scope custom commands,
-    /// then user-scope custom commands. Within each group, alphabetical.
-    static func availableCommands(cwd: String?) -> [SlashCommand] {
+    /// then user-scope custom commands, then anything the CLI reported that
+    /// we couldn't find on disk. Within each group, alphabetical.
+    ///
+    /// `reportedByCLI` is the `slash_commands` array from the last
+    /// `system/init` event. It is the CLI's own authoritative list and is
+    /// much wider than a directory scan can be — it includes skills, plugin
+    /// commands and the CLI's built-ins (`/compact`, `/context`, `/usage`),
+    /// none of which exist as `.md` files under `.claude/commands/`.
+    ///
+    /// It is merged rather than substituted because it only arrives once a
+    /// process has started: the scan keeps autocomplete working from the
+    /// first keystroke, and it carries the descriptions read from each
+    /// file's frontmatter, which the init event does not provide.
+    static func availableCommands(cwd: String?, reportedByCLI: [String] = []) -> [SlashCommand] {
         var out = builtinCommands
         if let cwd, !cwd.isEmpty {
             let projectDir = URL(fileURLWithPath: cwd, isDirectory: true)
@@ -64,7 +82,46 @@ enum SlashCommandRegistry {
             .appendingPathComponent(".claude", isDirectory: true)
             .appendingPathComponent("commands", isDirectory: true)
         out.append(contentsOf: customCommands(in: userDir, sourceForURL: { .userCustom($0) }))
+        out.append(contentsOf: cliReportedCommands(reportedByCLI, alreadyListed: out))
         return out
+    }
+
+    /// Turn the init event's `slash_commands` names into commands, dropping
+    /// the ones we already have (a file scan wins: it carries a real
+    /// description) and the ones that aren't meant to be typed by a user.
+    private static func cliReportedCommands(
+        _ names: [String],
+        alreadyListed: [SlashCommand]
+    ) -> [SlashCommand] {
+        guard !names.isEmpty else { return [] }
+        let known = Set(alreadyListed.map(\.name))
+        let description = String(
+            localized: "claudeChat.slash.cliReported.desc",
+            defaultValue: "Claude Code command"
+        )
+        return names
+            .filter { !known.contains($0) && isUserFacing($0) }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            .map {
+                SlashCommand(
+                    name: $0,
+                    description: description,
+                    source: .cliReported,
+                    action: .sendAsPrompt
+                )
+            }
+    }
+
+    /// Internal plumbing the CLI lists but nobody should be offered:
+    /// double-underscore entries are harness-internal, and these two are
+    /// diagnostics/orchestration rather than commands.
+    private static let hiddenCLICommands: Set<String> = [
+        "workflow-launch-exec",
+        "heapdump",
+    ]
+
+    static func isUserFacing(_ name: String) -> Bool {
+        !name.isEmpty && !name.hasPrefix("__") && !hiddenCLICommands.contains(name)
     }
 
     /// Filter `commands` by a `/`-less prefix (case-insensitive). An empty
@@ -207,7 +264,9 @@ enum SlashCommandRegistry {
     static func readBody(of command: SlashCommand) -> String {
         let url: URL
         switch command.source {
-        case .builtin: return ""
+        // No file to read: built-ins run in-app, and CLI-reported commands
+        // are expanded by claude itself when we forward the literal text.
+        case .builtin, .cliReported: return ""
         case .userCustom(let u), .projectCustom(let u): url = u
         }
         guard let data = try? Data(contentsOf: url),

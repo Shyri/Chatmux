@@ -76,6 +76,81 @@ import Testing
         }
     }
 
+    /// The `.claude/commands/` scan can only see markdown files, so skills,
+    /// plugin commands and the CLI's own built-ins never showed up in
+    /// autocomplete. The init event's `slash_commands` fills that gap.
+    @Test func availableCommandsMergesTheCLIReportedList() throws {
+        try withTemporaryCwd { cwd in
+            let commands = SlashCommandRegistry.availableCommands(
+                cwd: cwd.path,
+                reportedByCLI: ["compact", "context", "dataviz"]
+            )
+            let compact = try #require(commands.first { $0.name == "compact" })
+            #expect(compact.source == .cliReported)
+            #expect(compact.action == .sendAsPrompt)
+            #expect(commands.contains { $0.name == "dataviz" })
+        }
+    }
+
+    /// A file on disk wins: it carries a real description read from the
+    /// frontmatter, and the CLI reports names only.
+    @Test func cliReportedNamesNeverDuplicateScannedOrBuiltinCommands() throws {
+        try withTemporaryCwd { cwd in
+            let commandsDir = cwd
+                .appendingPathComponent(".claude", isDirectory: true)
+                .appendingPathComponent("commands", isDirectory: true)
+            try FileManager.default.createDirectory(at: commandsDir, withIntermediateDirectories: true)
+            try "---\ndescription: Ship it\n---\nbody".write(
+                to: commandsDir.appendingPathComponent("start-release.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+
+            let commands = SlashCommandRegistry.availableCommands(
+                cwd: cwd.path,
+                // The CLI reports both, plus a built-in the panel owns.
+                reportedByCLI: ["start-release", "clear", "compact"]
+            )
+            #expect(commands.filter { $0.name == "start-release" }.count == 1)
+            #expect(commands.first { $0.name == "start-release" }?.description == "Ship it")
+            #expect(commands.filter { $0.name == "clear" }.count == 1)
+            // `clear` stays the in-app action, not a prompt forwarded to claude.
+            #expect(commands.first { $0.name == "clear" }?.action
+                    == .runBuiltin(SlashCommandRegistry.BuiltinKey.clear))
+            #expect(commands.contains { $0.name == "compact" })
+        }
+    }
+
+    /// Harness plumbing the CLI lists but nobody types.
+    @Test func cliReportedListHidesInternalCommands() throws {
+        #expect(SlashCommandRegistry.isUserFacing("compact"))
+        #expect(SlashCommandRegistry.isUserFacing("__remote-workflow") == false)
+        #expect(SlashCommandRegistry.isUserFacing("workflow-launch-exec") == false)
+        #expect(SlashCommandRegistry.isUserFacing("heapdump") == false)
+        #expect(SlashCommandRegistry.isUserFacing("") == false)
+
+        try withTemporaryCwd { cwd in
+            let commands = SlashCommandRegistry.availableCommands(
+                cwd: cwd.path,
+                reportedByCLI: ["__remote-workflow", "heapdump", "usage"]
+            )
+            #expect(commands.contains { $0.name == "usage" })
+            #expect(commands.contains { $0.name.hasPrefix("__") } == false)
+            #expect(commands.contains { $0.name == "heapdump" } == false)
+        }
+    }
+
+    /// Autocomplete has to keep working before any process has started,
+    /// which is exactly when the CLI list is still empty.
+    @Test func availableCommandsIsUnchangedWithoutACLIList() throws {
+        try withTemporaryCwd { cwd in
+            let withEmpty = SlashCommandRegistry.availableCommands(cwd: cwd.path, reportedByCLI: [])
+            let withoutArg = SlashCommandRegistry.availableCommands(cwd: cwd.path)
+            #expect(withEmpty.map(\.id) == withoutArg.map(\.id))
+            #expect(withEmpty.allSatisfy { $0.source == .builtin } || !withEmpty.isEmpty)
+        }
+    }
+
     @Test func availableCommandsFallsBackToFirstContentLineForDescription() throws {
         try withTemporaryCwd { cwd in
             let commandsDir = cwd

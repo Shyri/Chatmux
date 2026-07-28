@@ -455,6 +455,13 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
     /// are talking to.
     @Published private(set) var modelName: String?
 
+    /// Every slash command the CLI says it recognises, from the last
+    /// `system/init`. Merged into the autocomplete list on top of the
+    /// `.claude/commands/` scan, which cannot see skills, plugin commands
+    /// or the CLI's own built-ins (`/compact`, `/context`, `/usage`).
+    /// Empty until the first process has started.
+    @Published private(set) var cliSlashCommands: [String] = []
+
     /// Stdout of the user's `statusLine.command` (project or user
     /// settings). `nil` when the user hasn't configured a status line
     /// or the command failed; refreshed after every turn.
@@ -2290,9 +2297,14 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
 
     private func handle(event: ClaudeStreamEvent) {
         switch event {
-        case .systemInit(let sid, let model, _, let mcpServers):
+        case .systemInit(let sid, let model, _, let mcpServers, let slashCommands):
             if !sid.isEmpty, sessionId != sid {
                 sessionId = sid
+            }
+            // The CLI's own command list — skills and plugin commands
+            // included, none of which a scan of `.claude/commands/` can see.
+            if !slashCommands.isEmpty, cliSlashCommands != slashCommands {
+                cliSlashCommands = slashCommands
             }
             if let model, !model.isEmpty, modelName != model {
                 modelName = model
