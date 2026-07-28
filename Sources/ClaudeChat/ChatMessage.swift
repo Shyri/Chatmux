@@ -104,6 +104,11 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
     /// even when the picker has since been changed. `nil` for messages
     /// from older transcripts, and for anything the user sent.
     var effort: String?
+    /// Set when this message was forwarded from a subagent rather than
+    /// produced by the session's lead (`--forward-subagent-text`). Carries
+    /// the agent type, e.g. `Explore`, so the row can be labelled as
+    /// somebody else's work. Nil for the lead's own messages.
+    var subagentType: String?
 
     init(
         id: UUID = UUID(),
@@ -114,6 +119,7 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
         slashCommandName: String? = nil,
         claudeMessageId: String? = nil,
         effort: String? = nil,
+        subagentType: String? = nil,
         createdAt: Date = Date()
     ) {
         self.id = id
@@ -124,6 +130,7 @@ struct ChatMessage: Identifiable, Codable, Sendable, Equatable {
         self.slashCommandName = slashCommandName
         self.claudeMessageId = claudeMessageId
         self.effort = effort
+        self.subagentType = subagentType
         self.createdAt = createdAt
     }
 

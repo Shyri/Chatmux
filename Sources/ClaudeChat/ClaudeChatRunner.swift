@@ -391,6 +391,13 @@ final class ClaudeChatRunner {
             "--input-format", "stream-json",
             "--output-format", "stream-json",
             "--verbose",
+            // Without this the panel goes silent for the whole length of an
+            // Agent call — subagents run in the background by default since
+            // Claude Code 2.1.198, and their text is dropped from the stream
+            // unless asked for (2.1.211; nested spawns since 2.1.219). The
+            // forwarded messages are tagged with `parent_tool_use_id`, which
+            // is what keeps them out of the lead's tool bookkeeping.
+            "--forward-subagent-text",
             "--permission-mode", permissionMode
         ]
         if let model, !model.isEmpty {

@@ -35,7 +35,10 @@ import Testing
 
     @Test func baseFlagsAlwaysPresentInStreamJSONMode() {
         let args = build(mode: "plan")
-        #expect(args.prefix(6) == ["-p", "--input-format", "stream-json", "--output-format", "stream-json", "--verbose"])
+        #expect(args.prefix(7) == [
+            "-p", "--input-format", "stream-json", "--output-format", "stream-json",
+            "--verbose", "--forward-subagent-text",
+        ])
         #expect(adjacentValue(args, flag: "--permission-mode") == "plan")
     }
 

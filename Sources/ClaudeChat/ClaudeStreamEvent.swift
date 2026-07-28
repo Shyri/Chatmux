@@ -18,7 +18,12 @@ import Foundation
 /// crash the chat.
 enum ClaudeStreamEvent {
     case systemInit(sessionId: String, model: String?, cwd: String?, mcpServers: [McpServerInitStatus])
-    case assistant(messageId: String?, blocks: [ChatMessageBlock], usage: ChatTokenUsage?)
+    case assistant(
+        messageId: String?,
+        blocks: [ChatMessageBlock],
+        usage: ChatTokenUsage?,
+        subagent: SubagentOrigin?
+    )
     case user(blocks: [ChatMessageBlock])
     case result(isError: Bool, sessionId: String?, errorMessage: String?, totalCostUSD: Double?, usage: ChatTokenUsage?)
     /// Lifecycle event for a background task (today, only `local_bash`
@@ -43,6 +48,29 @@ enum BackgroundTaskPhase: Equatable {
     case started
     case updated
     case notification
+}
+
+/// Marks an `assistant` event as coming from a subagent rather than from
+/// the session's lead.
+///
+/// Only present when the CLI runs with `--forward-subagent-text` (Claude
+/// Code 2.1.211; nested spawns at depth 2+ since 2.1.219). Shape verified
+/// against claude-code 2.1.220: the lead's own messages carry a null
+/// `parent_tool_use_id` and no `subagent_type`, while a subagent's carry
+/// both, keyed by the `tool_use` id of the Agent call that spawned it.
+///
+/// This distinction is load-bearing, not decorative: the panel reacts to
+/// `tool_use` blocks (background shells, `EnterWorktree`, `ExitPlanMode`,
+/// task tracking), and running those side effects for a subagent's tools
+/// would move the lead's own UI state.
+struct SubagentOrigin: Equatable {
+    /// `tool_use` id of the Agent call that spawned this subagent.
+    let parentToolUseId: String
+    /// Registered agent type, e.g. `Explore`. Nil on nested forwards that
+    /// only carry the parent id.
+    let subagentType: String?
+    /// Short description the spawning call gave the task.
+    let taskDescription: String?
 }
 
 /// One entry of the `mcp_servers` array carried in the `system/init`
@@ -290,7 +318,26 @@ extension ClaudeStreamEvent {
         let contentArray = message["content"] as? [[String: Any]] ?? []
         let blocks = contentArray.compactMap { decodeContentBlock($0) }
         let usage = ChatTokenUsage.decode(message["usage"] as? [String: Any])
-        return .assistant(messageId: messageId, blocks: blocks, usage: usage)
+        return .assistant(
+            messageId: messageId,
+            blocks: blocks,
+            usage: usage,
+            subagent: parseSubagentOrigin(dict)
+        )
+    }
+
+    /// A non-empty `parent_tool_use_id` is what separates a subagent's
+    /// forwarded message from the lead's own. The lead sends the key as
+    /// `null`, so a plain presence check would misread every message.
+    private static func parseSubagentOrigin(_ dict: [String: Any]) -> SubagentOrigin? {
+        guard let parentToolUseId = dict["parent_tool_use_id"] as? String,
+              !parentToolUseId.isEmpty
+        else { return nil }
+        return SubagentOrigin(
+            parentToolUseId: parentToolUseId,
+            subagentType: dict["subagent_type"] as? String,
+            taskDescription: dict["task_description"] as? String
+        )
     }
 
     private static func parseUser(_ dict: [String: Any]) -> ClaudeStreamEvent {

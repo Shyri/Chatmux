@@ -2299,8 +2299,26 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
                 snapshot[entry.name] = entry
             }
             mcpRuntimeStatus = snapshot
-        case .assistant(let claudeMid, let blocks, _):
+        case .assistant(let claudeMid, let blocks, _, let subagent):
             guard !blocks.isEmpty else { return }
+            // Forwarded subagent output (`--forward-subagent-text`). Every
+            // handler below reacts to the *lead's* tool calls and mutates
+            // panel state accordingly — background-shell rows, the worktree
+            // chip, the todo banner, plan-mode focus. A subagent runs its
+            // own tools in its own context, so feeding them through here
+            // would let somebody else's Bash or EnterWorktree move this
+            // session's UI. Render the text and stop.
+            if let subagent {
+                let textOnly = blocks.filter { if case .text = $0 { return true } else { return false } }
+                guard !textOnly.isEmpty else { return }
+                enqueueStreamedMessage(ChatMessage(
+                    role: .assistant,
+                    blocks: textOnly,
+                    claudeMessageId: claudeMid,
+                    subagentType: subagent.subagentType
+                ))
+                return
+            }
             // Detect attempts to call the non-functional built-in
             // `AskUserQuestion` and warn the user. Surface the tool name so
             // we can refine the disallow-list / system prompt if needed.

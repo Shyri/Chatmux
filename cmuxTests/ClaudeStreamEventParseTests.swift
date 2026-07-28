@@ -205,7 +205,7 @@ import Testing
         ],"usage":{"input_tokens":10,"output_tokens":5}}}
         """
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .assistant(messageId, blocks, usage) = event else {
+        guard case let .assistant(messageId, blocks, usage, subagent) = event else {
             Issue.record("expected .assistant, got \(event)")
             return
         }
@@ -222,12 +222,69 @@ import Testing
         #expect(toolUse.inputJSON.contains("\"ls\""))
         #expect(usage?.inputTokens == 10)
         #expect(usage?.outputTokens == 5)
+        #expect(subagent == nil)
+    }
+
+    /// With `--forward-subagent-text` the stream carries the subagent's own
+    /// messages. Telling them apart matters: the panel runs tool-use side
+    /// effects (background shells, EnterWorktree, todo banner) for the lead
+    /// only. Payload captured from a real claude-code 2.1.220 Agent call.
+    @Test func assistantCarriesSubagentOriginWhenForwarded() throws {
+        let line = """
+        {"type":"assistant","parent_tool_use_id":"toolu_01UH9jZZT414tXsVRnLCfyyH",\
+        "subagent_type":"Explore","task_description":"Answer simple math question",\
+        "message":{"id":"m2","content":[{"type":"text","text":"4"}]}}
+        """
+        let event = try #require(try ClaudeStreamEvent.parse(line: line))
+        guard case let .assistant(_, blocks, _, subagent) = event else {
+            Issue.record("expected .assistant, got \(event)")
+            return
+        }
+        #expect(blocks == [.text("4")])
+        #expect(subagent == SubagentOrigin(
+            parentToolUseId: "toolu_01UH9jZZT414tXsVRnLCfyyH",
+            subagentType: "Explore",
+            taskDescription: "Answer simple math question"
+        ))
+    }
+
+    /// The lead sends `parent_tool_use_id` as an explicit null rather than
+    /// omitting it, so a presence check would tag every message as a
+    /// subagent's and silently stop the panel's tool bookkeeping.
+    @Test func assistantWithNullParentToolUseIdIsNotASubagent() throws {
+        let line = """
+        {"type":"assistant","parent_tool_use_id":null,\
+        "message":{"id":"m1","content":[{"type":"text","text":"lead"}]}}
+        """
+        let event = try #require(try ClaudeStreamEvent.parse(line: line))
+        guard case let .assistant(_, _, _, subagent) = event else {
+            Issue.record("expected .assistant")
+            return
+        }
+        #expect(subagent == nil)
+    }
+
+    /// Nested forwards (depth 2+, Claude Code 2.1.219) may only carry the
+    /// parent id — that alone still identifies the message as a subagent's.
+    @Test func assistantSubagentOriginToleratesMissingTypeAndDescription() throws {
+        let line = """
+        {"type":"assistant","parent_tool_use_id":"toolu_nested",\
+        "message":{"content":[{"type":"text","text":"deep"}]}}
+        """
+        let event = try #require(try ClaudeStreamEvent.parse(line: line))
+        guard case let .assistant(_, _, _, subagent) = event else {
+            Issue.record("expected .assistant")
+            return
+        }
+        #expect(subagent?.parentToolUseId == "toolu_nested")
+        #expect(subagent?.subagentType == nil)
+        #expect(subagent?.taskDescription == nil)
     }
 
     @Test func assistantDropsWhitespaceOnlyTextBlocks() throws {
         let line = #"{"type":"assistant","message":{"content":[{"type":"text","text":"   "}]}}"#
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .assistant(_, blocks, _) = event else {
+        guard case let .assistant(_, blocks, _, _) = event else {
             Issue.record("expected .assistant")
             return
         }
