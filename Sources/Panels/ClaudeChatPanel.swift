@@ -60,10 +60,13 @@ struct ChatAttachment: Identifiable, Equatable {
 /// otherwise the CLI's hard-coded default — Sonnet 5 since Claude Code
 /// 2.1.197).
 ///
-/// Just like `--permission-mode`, the CLI bakes `--model` into argv at
-/// spawn time and cannot change it mid-session — `ClaudeChatRunner`
-/// tracks `launchedModel` and respawns with `--resume <sessionId>`
-/// when the selection differs from the running process.
+/// The CLI bakes `--model` into argv at spawn time, but unlike
+/// `--permission-mode` it can be changed afterwards: `ClaudeChatRunner`
+/// tracks `launchedModel` and sends a `set_model` control request over
+/// stdin when the selection differs (Claude Code 2.1.212+), keeping the
+/// process and its MCP connections alive. Switching back to `default`
+/// still respawns with `--resume <sessionId>`, since no control request
+/// restores "whatever the CLI would have picked".
 enum ChatModelSelection: String, CaseIterable, Identifiable {
     case `default`
     case fable5

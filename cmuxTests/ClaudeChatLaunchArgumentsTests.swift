@@ -120,6 +120,27 @@ import Testing
         #expect((milliseconds ?? 0) >= 60 * 60 * 1000)
     }
 
+    /// Claude Code 2.1.212 lets a headless session switch models mid-flight
+    /// via a `set_model` control request, so the panel no longer has to kill
+    /// and resume the process on every model change. Pins the wire format
+    /// captured from claude-code 2.1.220, which answered `success` and ran
+    /// the following turn on the requested model.
+    @Test func setModelControlRequestMatchesTheVerifiedWireFormat() throws {
+        let line = try #require(ClaudeChatRunner.makeSetModelControlRequestLine(
+            model: "claude-haiku-4-5",
+            requestId: "req-1"
+        ))
+        #expect(line.last == 0x0A, "control requests are newline-delimited on stdin")
+
+        let object = try JSONSerialization.jsonObject(with: line.dropLast())
+        let payload = try #require(object as? [String: Any])
+        #expect(payload["type"] as? String == "control_request")
+        #expect(payload["request_id"] as? String == "req-1")
+        let request = try #require(payload["request"] as? [String: Any])
+        #expect(request["subtype"] as? String == "set_model")
+        #expect(request["model"] as? String == "claude-haiku-4-5")
+    }
+
     // Returns the element immediately after `flag`, or nil if absent / last.
     private func adjacentValue(_ args: [String], flag: String) -> String? {
         guard let i = args.firstIndex(of: flag), i + 1 < args.count else { return nil }

@@ -169,14 +169,23 @@ final class ClaudeChatRunner {
                     && self.launchedEffort == effort {
                     return
                 }
-                // Permission mode, model, or thinking effort changed
-                // since launch (e.g. user clicked Approve on an
-                // ExitPlanMode card, or picked a different model /
-                // effort from the header picker). `claude -p` bakes
-                // all three into argv at spawn time, so we tear down
-                // and respawn. The new launch passes the same
-                // `sessionId` via `--resume`, so claude reattaches to
-                // the same session.
+                // A model-only change no longer needs a respawn: since
+                // Claude Code 2.1.212 headless sessions apply a `set_model`
+                // control request, and the next model round-trip picks it
+                // up. Keeping the process alive preserves the MCP
+                // connections and skips the `--resume` rehydration.
+                if self.launchedPermissionMode == permissionMode
+                    && self.launchedEffort == effort
+                    && self.applyModelChangeInPlace(model) {
+                    return
+                }
+                // Permission mode or thinking effort changed since launch
+                // (e.g. user clicked Approve on an ExitPlanMode card, or
+                // picked a different effort from the header picker).
+                // `claude -p` bakes both into argv at spawn time and has no
+                // control request for them, so we tear down and respawn.
+                // The new launch passes the same `sessionId` via
+                // `--resume`, so claude reattaches to the same session.
                 self.tearDownForRespawn(existing: existing)
             }
             do {
@@ -198,6 +207,62 @@ final class ClaudeChatRunner {
                 }
             }
         }
+    }
+
+    /// Switch the running process to `model` without respawning, by writing
+    /// a `set_model` control request to its stdin.
+    ///
+    /// Wire format, verified against claude-code 2.1.220:
+    /// ```json
+    /// {"type":"control_request","request_id":"<uuid>",
+    ///  "request":{"subtype":"set_model","model":"claude-haiku-4-5"}}
+    /// ```
+    /// The CLI answers `{"type":"control_response","response":{"subtype":
+    /// "success","request_id":"…"}}` and the following turn runs on the new
+    /// model. Note it answers `success` even for a model name that doesn't
+    /// exist, so the response is not a validation signal — the picker is the
+    /// only guard on what we send.
+    ///
+    /// Returns `false` when the request could not be delivered (broken pipe,
+    /// or no `--model` baked in at launch so there is nothing to switch
+    /// *from* deterministically), leaving the caller to respawn instead.
+    ///
+    /// Must be called on `processQueue`.
+    private func applyModelChangeInPlace(_ model: String?) -> Bool {
+        // `nil` means "let the CLI pick its own default". There is no control
+        // request that restores that, so fall back to a respawn without a
+        // `--model` flag.
+        guard let model, !model.isEmpty else { return false }
+        guard let stdin = stdinHandle else { return false }
+        guard let line = Self.makeSetModelControlRequestLine(
+            model: model,
+            requestId: UUID().uuidString.lowercased()
+        ) else { return false }
+        do {
+            try stdin.write(contentsOf: line)
+        } catch {
+            // Dead pipe — the caller respawns, which also re-establishes it.
+            return false
+        }
+        ChatRunnerDebugLog.shared.appendStdoutLine("→ stdin set_model control_request: \(model)")
+        launchedModel = model
+        return true
+    }
+
+    /// Encode one newline-terminated `set_model` control request. Split out
+    /// from `applyModelChangeInPlace` so the wire format can be pinned by a
+    /// unit test without a live process.
+    static func makeSetModelControlRequestLine(model: String, requestId: String) -> Data? {
+        let payload: [String: Any] = [
+            "type": "control_request",
+            "request_id": requestId,
+            "request": ["subtype": "set_model", "model": model]
+        ]
+        guard var data = try? JSONSerialization.data(withJSONObject: payload, options: []) else {
+            return nil
+        }
+        data.append(0x0A)  // '\n'
+        return data
     }
 
     /// Synchronously (on `processQueue`) detach from the still-running
