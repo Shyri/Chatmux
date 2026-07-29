@@ -200,6 +200,7 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		7C592156DCB3419BB95383E5 /* AutoNamingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7752D68A758642EFA282C208 /* AutoNamingEngineTests.swift */; };
 		A4ECF22C62724853A72D6BDE /* AutoNamingGrokAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07EC52007B2144C59C047774 /* AutoNamingGrokAdapterTests.swift */; };
 		74AB3F34FE3B4974A3A5D264 /* AutoNamingHookPayloadAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46792DAA478444ED87B17B31 /* AutoNamingHookPayloadAdapterTests.swift */; };
+		CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */; };
 		A5009B0100000000000000B6 /* BackgroundShellsPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000B5 /* BackgroundShellsPopover.swift */; };
 		C0DE35860000000000000001 /* BackgroundWorkspacePrimeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE35860000000000000002 /* BackgroundWorkspacePrimeCoordinator.swift */; };
 		A50012F1 /* Backport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50012F0 /* Backport.swift */; };
@@ -402,6 +403,9 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		6565EC5A507F25D89323E1C9 /* ChatMcpHttpServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E736846EE87C39633BF7FD51 /* ChatMcpHttpServer.swift */; };
 		9358ED6C0B673D29EEDADCDC /* ChatMcpRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE53E85BE089D858B133162 /* ChatMcpRequest.swift */; };
 		6B7604793CDAE4FC30F643CF /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBEA3FF0E2CD31C56245F60D /* ChatMessage.swift */; };
+		A4621CB53FB101B14F2D6787 /* ChatmuxProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E00FF628B413A62944CB3B5 /* ChatmuxProject.swift */; };
+		24B0A91F1439635A6D8AECE8 /* ChatmuxProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A04A4390BB4EAD6A0CD828 /* ChatmuxProjectStore.swift */; };
+		EB63D0986F76D1ECE3A0ABD5 /* ChatmuxProjectStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF4AF60546E99F19178436CB /* ChatmuxProjectStoreTests.swift */; };
 		CFB000511000000FORKTEST /* ChatmuxUpstreamSeamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000512000000FORKTEST /* ChatmuxUpstreamSeamTests.swift */; };
 		85162B47BC013A91A13E2EAB /* ChatPermissionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C34BA89A50145288B8A423A /* ChatPermissionRules.swift */; };
 		CFA0000111000000FORKTEST /* ChatPermissionRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA0000112000000FORKTEST /* ChatPermissionRulesTests.swift */; };
@@ -431,7 +435,6 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		C7A533000000000000000002 /* ClaudeSessionCanonicalizationContext.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7A533000000000000000001 /* ClaudeSessionCanonicalizationContext.swift */; };
 		3EF9A6A5AD88979953831EF3 /* ClaudeSessionHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2DD46CB9844E014CB4CB2A /* ClaudeSessionHistory.swift */; };
 		CFB000611000000FORKTEST /* ClaudeSessionHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000612000000FORKTEST /* ClaudeSessionHistoryTests.swift */; };
-		CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */; };
 		02F48C2457D5AD5AF2E6D0BE /* ClaudeStreamEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23220DC3E2C06D416B00A249 /* ClaudeStreamEvent.swift */; };
 		CFB000111000000FORKTEST /* ClaudeStreamEventParseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000112000000FORKTEST /* ClaudeStreamEventParseTests.swift */; };
 		A9F200000000000000000015 /* ClaudeStreamJSONAccumulator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F100000000000000000015 /* ClaudeStreamJSONAccumulator.swift */; };
@@ -2366,6 +2369,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		7752D68A758642EFA282C208 /* AutoNamingEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingEngineTests.swift; sourceTree = "<group>"; };
 		07EC52007B2144C59C047774 /* AutoNamingGrokAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingGrokAdapterTests.swift; sourceTree = "<group>"; };
 		46792DAA478444ED87B17B31 /* AutoNamingHookPayloadAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingHookPayloadAdapterTests.swift; sourceTree = "<group>"; };
+		CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShellReconciliationTests.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000B5 /* BackgroundShellsPopover.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BackgroundShellsPopover.swift; sourceTree = "<group>"; };
 		C0DE35860000000000000002 /* BackgroundWorkspacePrimeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkspacePrimeCoordinator.swift; sourceTree = "<group>"; };
 		A50012F0 /* Backport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Backport.swift; sourceTree = "<group>"; };
@@ -2566,6 +2570,9 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		E736846EE87C39633BF7FD51 /* ChatMcpHttpServer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMcpHttpServer.swift; sourceTree = "<group>"; };
 		BDE53E85BE089D858B133162 /* ChatMcpRequest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMcpRequest.swift; sourceTree = "<group>"; };
 		FBEA3FF0E2CD31C56245F60D /* ChatMessage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		3E00FF628B413A62944CB3B5 /* ChatmuxProject.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProject.swift; sourceTree = "<group>"; };
+		C6A04A4390BB4EAD6A0CD828 /* ChatmuxProjectStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProjectStore.swift; sourceTree = "<group>"; };
+		AF4AF60546E99F19178436CB /* ChatmuxProjectStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProjectStoreTests.swift; sourceTree = "<group>"; };
 		CFB000512000000FORKTEST /* ChatmuxUpstreamSeamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatmuxUpstreamSeamTests.swift; sourceTree = "<group>"; };
 		4C34BA89A50145288B8A423A /* ChatPermissionRules.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatPermissionRules.swift; sourceTree = "<group>"; };
 		CFA0000112000000FORKTEST /* ChatPermissionRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPermissionRulesTests.swift; sourceTree = "<group>"; };
@@ -2595,7 +2602,6 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		C7A533000000000000000001 /* ClaudeSessionCanonicalizationContext.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = "ClaudeSessionCanonicalizationContext.swift"; sourceTree = "<group>"; };
 		9A2DD46CB9844E014CB4CB2A /* ClaudeSessionHistory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeSessionHistory.swift; sourceTree = "<group>"; };
 		CFB000612000000FORKTEST /* ClaudeSessionHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeSessionHistoryTests.swift; sourceTree = "<group>"; };
-		CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShellReconciliationTests.swift; sourceTree = "<group>"; };
 		23220DC3E2C06D416B00A249 /* ClaudeStreamEvent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClaudeStreamEvent.swift; sourceTree = "<group>"; };
 		CFB000112000000FORKTEST /* ClaudeStreamEventParseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeStreamEventParseTests.swift; sourceTree = "<group>"; };
 		A9F100000000000000000015 /* ClaudeStreamJSONAccumulator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Panels/ClaudeStreamJSONAccumulator.swift; sourceTree = "<group>"; };
@@ -5744,6 +5750,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				F77173936EE81E14BBC864EE /* WorkspaceNotesManagerWindowController.swift */,
 				655DB4A30F8BA877E219596E /* WorkspaceNotesStore.swift */,
 				71A8A901AC678DA9C3F61D92 /* SessionPreset.swift */,
+				C6A04A4390BB4EAD6A0CD828 /* ChatmuxProjectStore.swift */,
+				3E00FF628B413A62944CB3B5 /* ChatmuxProject.swift */,
 				9F068368F075B93C7F4B668A /* SessionPresetStore.swift */,
 				AF191C2B110E76D4F138E3AD /* SessionPresetsView.swift */,
 				173D250E9538BF357803AEAA /* SessionPresetsWindowController.swift */,
@@ -5950,6 +5958,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				CFB000912000000FORKTEST /* GitLabModelDecodingTests.swift */,
 				CFB001012000000FORKTEST /* GitLabIssueFiltersStoreTests.swift */,
 				CFA0000212000000FORKTEST /* McpServerCatalogTests.swift */,
+				AF4AF60546E99F19178436CB /* ChatmuxProjectStoreTests.swift */,
 				CFA0000312000000FORKTEST /* ChatThinkingEffortResolutionTests.swift */,
 				CFA0000412000000FORKTEST /* ChatApprovalDedupePolicyTests.swift */,
 				CFA0000512000000FORKTEST /* DrainPipesInParallelTests.swift */,
@@ -7221,6 +7230,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				6565EC5A507F25D89323E1C9 /* ChatMcpHttpServer.swift in Sources */,
 				9358ED6C0B673D29EEDADCDC /* ChatMcpRequest.swift in Sources */,
 				6B7604793CDAE4FC30F643CF /* ChatMessage.swift in Sources */,
+				A4621CB53FB101B14F2D6787 /* ChatmuxProject.swift in Sources */,
+				24B0A91F1439635A6D8AECE8 /* ChatmuxProjectStore.swift in Sources */,
 				85162B47BC013A91A13E2EAB /* ChatPermissionRules.swift in Sources */,
 				699EFB8F6C40B40C367570D7 /* ChatRunnerDebugLog.swift in Sources */,
 				081696D3A66545C50AD0598E /* ChecklistInputField.swift in Sources */,
@@ -8490,6 +8501,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				7C592156DCB3419BB95383E5 /* AutoNamingEngineTests.swift in Sources */,
 				A4ECF22C62724853A72D6BDE /* AutoNamingGrokAdapterTests.swift in Sources */,
 				74AB3F34FE3B4974A3A5D264 /* AutoNamingHookPayloadAdapterTests.swift in Sources */,
+				CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */,
 				D3622000A1B2C3D4E5F60718 /* BrowserArrowKeyForwardingTests.swift in Sources */,
 				8054B0030000000000000003 /* BrowserAutomationRecoveryLifecycleTests.swift in Sources */,
 				BCBC0A0E0000000000000D01 /* BrowserChromeMetricsTests.swift in Sources */,
@@ -8537,6 +8549,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				0A0F00580000000000000003 /* CampfireSupportTestSupport.swift in Sources */,
 				C4A570030000000000000001 /* CanvasShortcutContextTests.swift in Sources */,
 				CFA0000411000000FORKTEST /* ChatApprovalDedupePolicyTests.swift in Sources */,
+				EB63D0986F76D1ECE3A0ABD5 /* ChatmuxProjectStoreTests.swift in Sources */,
 				CFB000511000000FORKTEST /* ChatmuxUpstreamSeamTests.swift in Sources */,
 				CFA0000111000000FORKTEST /* ChatPermissionRulesTests.swift in Sources */,
 				CFA0000311000000FORKTEST /* ChatThinkingEffortResolutionTests.swift in Sources */,
@@ -8556,7 +8569,6 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				CFB000311000000FORKTEST /* ClaudeLoginShellWrapperTests.swift in Sources */,
 				A5D41222A1B2C3D4E5F60718 /* ClaudeNotificationStatusLifecycleTests.swift in Sources */,
 				CFB000611000000FORKTEST /* ClaudeSessionHistoryTests.swift in Sources */,
-				CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */,
 				CFB000111000000FORKTEST /* ClaudeStreamEventParseTests.swift in Sources */,
 				CFB000211000000FORKTEST /* ClaudeStreamJSONAccumulatorTests.swift in Sources */,
 				CE7000000000000000000001 /* ClaudeWrapperResumeEnvironmentTests.swift in Sources */,
