@@ -530,25 +530,22 @@ export const shortcutCategories: ShortcutCategory[] = [
     ],
   },
   {
-    id: "session-presets",
-    titleKey: "sessionPresets",
+    id: "projects",
+    titleKey: "projects",
     shortcuts: [
       {
-        id: "saveSessionAsPreset",
+        id: "saveWorkspaceAsProject",
         combos: [],
-        description: { en: "Save session as preset", ja: "セッションをプリセットとして保存" },
+        description: {
+          en: "Save workspace as project",
+          ja: "ワークスペースをプロジェクトとして保存",
+        },
         note: { en: "no default — assign in Settings", ja: "デフォルトなし — 設定で割り当て" },
       },
       {
-        id: "updateActiveSessionPreset",
+        id: "manageProjects",
         combos: [],
-        description: { en: "Update current preset", ja: "現在のプリセットを更新" },
-        note: { en: "no default — assign in Settings", ja: "デフォルトなし — 設定で割り当て" },
-      },
-      {
-        id: "manageSessionPresets",
-        combos: [],
-        description: { en: "Manage presets", ja: "プリセットを管理" },
+        description: { en: "Manage projects", ja: "プロジェクトを管理" },
         note: { en: "no default — assign in Settings", ja: "デフォルトなし — 設定で割り当て" },
       },
       {

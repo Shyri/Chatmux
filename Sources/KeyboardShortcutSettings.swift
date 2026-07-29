@@ -196,9 +196,8 @@ enum KeyboardShortcutSettings {
         case diffViewerNextFile, diffViewerPreviousFile
 
         // Session presets
-        case saveSessionAsPreset
-        case updateActiveSessionPreset
-        case manageSessionPresets
+        case saveWorkspaceAsProject
+        case manageProjects
 
         // Workspace notes
         case manageWorkspaceNotes
@@ -323,9 +322,8 @@ enum KeyboardShortcutSettings {
             case .toggleBrowserFocusMode: return String(localized: "shortcut.toggleBrowserFocusMode.label", defaultValue: "Enter Browser Focus Mode")
             case .toggleBrowserDesignMode: return String(localized: "shortcut.toggleBrowserDesignMode.label", defaultValue: "Toggle Browser Design Mode")
             case .toggleReactGrab: return String(localized: "shortcut.toggleReactGrab.label", defaultValue: "Toggle React Grab")
-            case .saveSessionAsPreset: return String(localized: "shortcut.saveSessionAsPreset.label", defaultValue: "Save Session as Preset…")
-            case .updateActiveSessionPreset: return String(localized: "shortcut.updateActiveSessionPreset.label", defaultValue: "Update Current Preset")
-            case .manageSessionPresets: return String(localized: "shortcut.manageSessionPresets.label", defaultValue: "Manage Presets…")
+            case .saveWorkspaceAsProject: return String(localized: "shortcut.saveWorkspaceAsProject.label", defaultValue: "Save Workspace as Project…")
+            case .manageProjects: return String(localized: "shortcut.manageProjects.label", defaultValue: "Manage Projects…")
             case .manageWorkspaceNotes: return String(localized: "shortcut.manageWorkspaceNotes.label", defaultValue: "Manage Notes…")
             case .openDiffViewer: return String(localized: "shortcut.openDiffViewer.label", defaultValue: "Open Diff Viewer")
             case .diffViewerScrollDown: return String(localized: "shortcut.diffViewerScrollDown.label", defaultValue: "Viewers: Scroll Down")
@@ -590,7 +588,7 @@ enum KeyboardShortcutSettings {
                 return StoredShortcut(key: "d", command: true, shift: false, option: true, control: true)
             case .toggleReactGrab:
                 return StoredShortcut(key: "g", command: true, shift: true, option: false, control: false)
-            case .saveSessionAsPreset, .updateActiveSessionPreset, .manageSessionPresets,
+            case .saveWorkspaceAsProject, .manageProjects,
                  .manageWorkspaceNotes:
                 // No default — user-assignable from Settings → Keyboard Shortcuts.
                 return StoredShortcut(key: "", command: false, shift: false, option: false, control: false)

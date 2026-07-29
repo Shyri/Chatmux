@@ -2036,6 +2036,15 @@ class TabManager: ObservableObject {
                 workspaceIndex: index,
                 snapshot: snapshot
             )))
+            // A workspace saved as a project keeps itself up to date: closing
+            // it is the "done for now" gesture, and coming back should show
+            // what was left behind. Reuses the capture above rather than
+            // taking a second one, since this path deliberately avoids
+            // synchronous work to keep closing responsive.
+            AppDelegate.shared?.updateProjectForClosingWorkspace(
+                stableId: workspace.stableId,
+                snapshot: snapshot
+            )
         }
         sidebarGitMetadataService.clearWorkspaceGitProbes(workspaceId: workspace.id)
         pullRequestProbing.clearWorkspacePullRequestTracking(workspaceId: workspace.id)

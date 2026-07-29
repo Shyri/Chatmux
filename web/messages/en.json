@@ -1938,7 +1938,7 @@
         "find": "Find",
         "terminal": "Terminal",
         "window": "Window",
-        "sessionPresets": "Session Presets",
+        "projects": "Projects",
         "diffViewer": "Diff Viewer"
       },
       "sc": {

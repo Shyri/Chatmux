@@ -134,6 +134,7 @@
 C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */; };
 		D35A00000000000000000001 /* AppDelegate+BrowserDesignMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = D35B00000000000000000001 /* AppDelegate+BrowserDesignMode.swift */; };
 		C4A570010000000000000001 /* AppDelegate+CanvasShortcutRouting.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A570010000000000000002 /* AppDelegate+CanvasShortcutRouting.swift */; };
+		1A3AC2C8DF299C6DBE700B57 /* AppDelegate+ChatmuxProjects.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0EA5A7EC8971F5CD012F4380 /* AppDelegate+ChatmuxProjects.swift */; };
 		C4160A030000000000000001 /* AppDelegate+ClosedItemHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4160A030000000000000002 /* AppDelegate+ClosedItemHistory.swift */; };
 		C54860050000000000000001 /* AppDelegate+CmuxNavigationDeepLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = C54860050000000000000002 /* AppDelegate+CmuxNavigationDeepLinks.swift */; };
 		C3677004000000000000001 /* AppDelegate+CmuxSSHURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3677004000000000000002 /* AppDelegate+CmuxSSHURL.swift */; };
@@ -406,6 +407,8 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		A4621CB53FB101B14F2D6787 /* ChatmuxProject.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E00FF628B413A62944CB3B5 /* ChatmuxProject.swift */; };
 		24B0A91F1439635A6D8AECE8 /* ChatmuxProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A04A4390BB4EAD6A0CD828 /* ChatmuxProjectStore.swift */; };
 		EB63D0986F76D1ECE3A0ABD5 /* ChatmuxProjectStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF4AF60546E99F19178436CB /* ChatmuxProjectStoreTests.swift */; };
+		A597CFA28DFE4B2D697016DF /* ChatmuxProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7ADF080D34F2BC127CB1F2CE /* ChatmuxProjectsView.swift */; };
+		ADA64303A1E708FEFA726FEF /* ChatmuxProjectsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF119C4295635B0B27D6F09E /* ChatmuxProjectsWindowController.swift */; };
 		CFB000511000000FORKTEST /* ChatmuxUpstreamSeamTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000512000000FORKTEST /* ChatmuxUpstreamSeamTests.swift */; };
 		85162B47BC013A91A13E2EAB /* ChatPermissionRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C34BA89A50145288B8A423A /* ChatPermissionRules.swift */; };
 		CFA0000111000000FORKTEST /* ChatPermissionRulesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA0000112000000FORKTEST /* ChatPermissionRulesTests.swift */; };
@@ -1474,10 +1477,6 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		C65930020000000000000002 /* SessionPersistencePolicy+CrashStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C65930020000000000000001 /* SessionPersistencePolicy+CrashStorage.swift */; };
 		F6572002A1B2C3D4E5F60718 /* SessionPersistenceResumeBindingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6572003A1B2C3D4E5F60718 /* SessionPersistenceResumeBindingTests.swift */; };
 		F5000000A1B2C3D4E5F60718 /* SessionPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5000001A1B2C3D4E5F60718 /* SessionPersistenceTests.swift */; };
-		5B07C781F6695279CD440CF7 /* SessionPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A8A901AC678DA9C3F61D92 /* SessionPreset.swift */; };
-		4B88EAB2C498D39E707BE03A /* SessionPresetStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F068368F075B93C7F4B668A /* SessionPresetStore.swift */; };
-		BE8BBADB5578D858B79EF84C /* SessionPresetsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF191C2B110E76D4F138E3AD /* SessionPresetsView.swift */; };
-		C51F2577B83976FF3CF7113E /* SessionPresetsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173D250E9538BF357803AEAA /* SessionPresetsWindowController.swift */; };
 		E30780000000000000000014 /* SessionRemoteWorkspaceSnapshot+Restore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E30780000000000000000013 /* SessionRemoteWorkspaceSnapshot+Restore.swift */; };
 		0A1107110000000000000022 /* SessionRestorableAgentSnapshot+Commands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1107110000000000000023 /* SessionRestorableAgentSnapshot+Commands.swift */; };
 		806600000000000000000002 /* SessionRestorableAgentSnapshotPermissionModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 806600000000000000000001 /* SessionRestorableAgentSnapshotPermissionModeTests.swift */; };
@@ -2302,6 +2301,7 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+AgentChatNotifications.swift"; sourceTree = "<group>"; };
 		D35B00000000000000000001 /* AppDelegate+BrowserDesignMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+BrowserDesignMode.swift"; sourceTree = "<group>"; };
 		C4A570010000000000000002 /* AppDelegate+CanvasShortcutRouting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+CanvasShortcutRouting.swift"; sourceTree = "<group>"; };
+		0EA5A7EC8971F5CD012F4380 /* AppDelegate+ChatmuxProjects.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate+ChatmuxProjects.swift; sourceTree = "<group>"; };
 		C4160A030000000000000002 /* AppDelegate+ClosedItemHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+ClosedItemHistory.swift"; sourceTree = "<group>"; };
 		C54860050000000000000002 /* AppDelegate+CmuxNavigationDeepLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+CmuxNavigationDeepLinks.swift"; sourceTree = "<group>"; };
 		C3677004000000000000002 /* AppDelegate+CmuxSSHURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppDelegate+CmuxSSHURL.swift"; sourceTree = "<group>"; };
@@ -2573,6 +2573,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		3E00FF628B413A62944CB3B5 /* ChatmuxProject.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProject.swift; sourceTree = "<group>"; };
 		C6A04A4390BB4EAD6A0CD828 /* ChatmuxProjectStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProjectStore.swift; sourceTree = "<group>"; };
 		AF4AF60546E99F19178436CB /* ChatmuxProjectStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProjectStoreTests.swift; sourceTree = "<group>"; };
+		7ADF080D34F2BC127CB1F2CE /* ChatmuxProjectsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProjectsView.swift; sourceTree = "<group>"; };
+		CF119C4295635B0B27D6F09E /* ChatmuxProjectsWindowController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatmuxProjectsWindowController.swift; sourceTree = "<group>"; };
 		CFB000512000000FORKTEST /* ChatmuxUpstreamSeamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatmuxUpstreamSeamTests.swift; sourceTree = "<group>"; };
 		4C34BA89A50145288B8A423A /* ChatPermissionRules.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatPermissionRules.swift; sourceTree = "<group>"; };
 		CFA0000112000000FORKTEST /* ChatPermissionRulesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatPermissionRulesTests.swift; sourceTree = "<group>"; };
@@ -3569,10 +3571,6 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		C65930020000000000000001 /* SessionPersistencePolicy+CrashStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SessionPersistencePolicy+CrashStorage.swift"; sourceTree = "<group>"; };
 		F6572003A1B2C3D4E5F60718 /* SessionPersistenceResumeBindingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPersistenceResumeBindingTests.swift; sourceTree = "<group>"; };
 		F5000001A1B2C3D4E5F60718 /* SessionPersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionPersistenceTests.swift; sourceTree = "<group>"; };
-		71A8A901AC678DA9C3F61D92 /* SessionPreset.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionPreset.swift; sourceTree = "<group>"; };
-		9F068368F075B93C7F4B668A /* SessionPresetStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionPresetStore.swift; sourceTree = "<group>"; };
-		AF191C2B110E76D4F138E3AD /* SessionPresetsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionPresetsView.swift; sourceTree = "<group>"; };
-		173D250E9538BF357803AEAA /* SessionPresetsWindowController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SessionPresetsWindowController.swift; sourceTree = "<group>"; };
 		E30780000000000000000013 /* SessionRemoteWorkspaceSnapshot+Restore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SessionRemoteWorkspaceSnapshot+Restore.swift"; sourceTree = "<group>"; };
 		0A1107110000000000000023 /* SessionRestorableAgentSnapshot+Commands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SessionRestorableAgentSnapshot+Commands.swift"; sourceTree = "<group>"; };
 		806600000000000000000001 /* SessionRestorableAgentSnapshotPermissionModeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRestorableAgentSnapshotPermissionModeTests.swift; sourceTree = "<group>"; };
@@ -5749,12 +5747,11 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				1053F89F8DE4804F9620D9C1 /* WorkspaceNotesManagerView.swift */,
 				F77173936EE81E14BBC864EE /* WorkspaceNotesManagerWindowController.swift */,
 				655DB4A30F8BA877E219596E /* WorkspaceNotesStore.swift */,
-				71A8A901AC678DA9C3F61D92 /* SessionPreset.swift */,
+				7ADF080D34F2BC127CB1F2CE /* ChatmuxProjectsView.swift */,
+				CF119C4295635B0B27D6F09E /* ChatmuxProjectsWindowController.swift */,
+				0EA5A7EC8971F5CD012F4380 /* AppDelegate+ChatmuxProjects.swift */,
 				C6A04A4390BB4EAD6A0CD828 /* ChatmuxProjectStore.swift */,
 				3E00FF628B413A62944CB3B5 /* ChatmuxProject.swift */,
-				9F068368F075B93C7F4B668A /* SessionPresetStore.swift */,
-				AF191C2B110E76D4F138E3AD /* SessionPresetsView.swift */,
-				173D250E9538BF357803AEAA /* SessionPresetsWindowController.swift */,
 				C57B00040000000000000002 /* TerminalController+CustomSidebarCommands.swift */,
 				8054A0040000000000000004 /* TerminalController+BrowserAutomationRecovery.swift */,
 				C57B00050000000000000002 /* CmuxExtensionSidebarSelection+CustomSidebarName.swift */,
@@ -7039,6 +7036,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources */,
 				D35A00000000000000000001 /* AppDelegate+BrowserDesignMode.swift in Sources */,
 				C4A570010000000000000001 /* AppDelegate+CanvasShortcutRouting.swift in Sources */,
+				1A3AC2C8DF299C6DBE700B57 /* AppDelegate+ChatmuxProjects.swift in Sources */,
 				C4160A030000000000000001 /* AppDelegate+ClosedItemHistory.swift in Sources */,
 				C54860050000000000000001 /* AppDelegate+CmuxNavigationDeepLinks.swift in Sources */,
 				C3677004000000000000001 /* AppDelegate+CmuxSSHURL.swift in Sources */,
@@ -7232,6 +7230,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				6B7604793CDAE4FC30F643CF /* ChatMessage.swift in Sources */,
 				A4621CB53FB101B14F2D6787 /* ChatmuxProject.swift in Sources */,
 				24B0A91F1439635A6D8AECE8 /* ChatmuxProjectStore.swift in Sources */,
+				A597CFA28DFE4B2D697016DF /* ChatmuxProjectsView.swift in Sources */,
+				ADA64303A1E708FEFA726FEF /* ChatmuxProjectsWindowController.swift in Sources */,
 				85162B47BC013A91A13E2EAB /* ChatPermissionRules.swift in Sources */,
 				699EFB8F6C40B40C367570D7 /* ChatRunnerDebugLog.swift in Sources */,
 				081696D3A66545C50AD0598E /* ChecklistInputField.swift in Sources */,
@@ -7838,10 +7838,6 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5001610 /* SessionPersistence.swift in Sources */,
 				A74770010000000000000009 /* SessionPersistencePolicy+ConfigFrames.swift in Sources */,
 				C65930020000000000000002 /* SessionPersistencePolicy+CrashStorage.swift in Sources */,
-				5B07C781F6695279CD440CF7 /* SessionPreset.swift in Sources */,
-				4B88EAB2C498D39E707BE03A /* SessionPresetStore.swift in Sources */,
-				BE8BBADB5578D858B79EF84C /* SessionPresetsView.swift in Sources */,
-				C51F2577B83976FF3CF7113E /* SessionPresetsWindowController.swift in Sources */,
 				E30780000000000000000014 /* SessionRemoteWorkspaceSnapshot+Restore.swift in Sources */,
 				0A1107110000000000000022 /* SessionRestorableAgentSnapshot+Commands.swift in Sources */,
 				A5001670 /* SessionRestoredTerminalCommandStore.swift in Sources */,

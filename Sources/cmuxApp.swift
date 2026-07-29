@@ -64,7 +64,7 @@ struct cmuxApp: App {
     @StateObject private var sidebarState = SidebarState()
     @StateObject private var sidebarSelectionState = SidebarSelectionState()
     @StateObject private var keyboardShortcutSettingsObserver = KeyboardShortcutSettingsObserver.shared
-    @ObservedObject private var sessionPresetStore = SessionPresetStore.shared
+    @ObservedObject private var chatmuxProjectStore = ChatmuxProjectStore.shared
     private let primaryWindowId = UUID()
     @AppStorage(AppearanceSettings.appearanceModeKey) private var appearanceMode = AppearanceSettings.defaultMode.rawValue
     @AppStorage(TitlebarControlsStyle.storageKey) private var titlebarControlsStyle = TitlebarControlsStyle.defaultRawValue
@@ -820,7 +820,7 @@ struct cmuxApp: App {
 
                 Divider()
 
-                sessionPresetsFileMenuItems
+                chatmuxProjectsFileMenuItems
             }
 
             // Find
@@ -1171,62 +1171,48 @@ struct cmuxApp: App {
         notificationStore.notificationMenuSnapshot
     }
 
-    private struct SessionPresetsMenuSnapshot {
-        let presets: [SessionPreset]
-        let activePresetId: UUID?
-    }
+    /// Recents are capped in the menu; the manager window lists them all.
+    private static let projectsMenuRecentLimit = 12
 
-    private var sessionPresetsMenuSnapshot: SessionPresetsMenuSnapshot {
-        SessionPresetStore.shared.loadIfNeeded()
-        return SessionPresetsMenuSnapshot(
-            presets: sessionPresetStore.presets,
-            activePresetId: sessionPresetStore.activePresetId
-        )
+    /// Most-recently-opened first, capped for the menu. Reads through the
+    /// observed store so the menu rebuilds when a project is saved or opened.
+    private var projectsMenuSnapshot: [ChatmuxProject] {
+        ChatmuxProjectStore.shared.loadIfNeeded()
+        return Array(chatmuxProjectStore.projects.prefix(Self.projectsMenuRecentLimit))
     }
 
     @ViewBuilder
-    private var sessionPresetsFileMenuItems: some View {
-        let snapshot = sessionPresetsMenuSnapshot
+    private var chatmuxProjectsFileMenuItems: some View {
+        let projects = projectsMenuSnapshot
 
         splitCommandButton(
-            title: String(localized: "menu.file.saveSessionAsPreset", defaultValue: "Save Session as Preset…"),
-            shortcut: menuShortcut(for: .saveSessionAsPreset)
+            title: String(
+                localized: "menu.file.saveWorkspaceAsProject",
+                defaultValue: "Save Workspace as Project…"
+            ),
+            shortcut: menuShortcut(for: .saveWorkspaceAsProject)
         ) {
-            AppDelegate.shared?.presentSaveCurrentSessionAsPresetPrompt()
+            AppDelegate.shared?.presentSaveCurrentWorkspaceAsProjectPrompt()
         }
 
-        splitCommandButton(
-            title: String(localized: "menu.file.updateActivePreset", defaultValue: "Update Current Preset"),
-            shortcut: menuShortcut(for: .updateActiveSessionPreset)
-        ) {
-            _ = AppDelegate.shared?.updateActivePresetFromCurrentSession()
-        }
-        .disabled(snapshot.activePresetId == nil)
-
-        Menu(String(localized: "menu.file.loadPreset", defaultValue: "Load Preset")) {
-            if snapshot.presets.isEmpty {
-                Button(String(localized: "menu.file.loadPreset.empty", defaultValue: "No presets")) {}
+        Menu(String(localized: "menu.file.openProject", defaultValue: "Open Project")) {
+            if projects.isEmpty {
+                Button(String(localized: "menu.file.openProject.empty", defaultValue: "No projects")) {}
                     .disabled(true)
             } else {
-                ForEach(snapshot.presets) { preset in
-                    Button {
-                        _ = AppDelegate.shared?.loadSessionPreset(preset)
-                    } label: {
-                        if snapshot.activePresetId == preset.id {
-                            Label(preset.name, systemImage: "checkmark")
-                        } else {
-                            Text(preset.name)
-                        }
+                ForEach(projects) { project in
+                    Button(project.name) {
+                        _ = AppDelegate.shared?.openProject(project)
                     }
                 }
             }
         }
 
         splitCommandButton(
-            title: String(localized: "menu.file.manageSessionPresets", defaultValue: "Manage Presets…"),
-            shortcut: menuShortcut(for: .manageSessionPresets)
+            title: String(localized: "menu.file.manageProjects", defaultValue: "Manage Projects…"),
+            shortcut: menuShortcut(for: .manageProjects)
         ) {
-            AppDelegate.shared?.presentManageSessionPresets()
+            AppDelegate.shared?.presentManageChatmuxProjects()
         }
 
         splitCommandButton(

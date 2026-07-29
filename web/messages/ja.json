@@ -1860,7 +1860,7 @@
         "find": "検索",
         "terminal": "ターミナル",
         "window": "ウィンドウ",
-        "sessionPresets": "セッションプリセット",
+        "projects": "プロジェクト",
         "diffViewer": "差分ビューア"
       },
       "sc": {
