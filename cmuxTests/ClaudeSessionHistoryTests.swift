@@ -104,6 +104,71 @@ import Testing
         #expect(messages.allSatisfy { $0.effort == nil })
     }
 
+    // MARK: - Transcript resolution (saved projects)
+
+    /// A saved project keeps its own copy of the conversation, because Claude
+    /// Code's history under ~/.claude/projects is outside our control and may
+    /// be gone by the time the project is reopened.
+    @Test func resolveTranscriptPrefersTheProjectCopy() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("transcript-resolve-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let copy = directory.appendingPathComponent("copy.jsonl")
+        try "copied".write(to: copy, atomically: true, encoding: .utf8)
+
+        let resolved = ClaudeSessionHistory.resolveTranscriptURL(
+            sessionId: "sess-1",
+            cwd: "/work/dir",
+            copiedAt: copy.path
+        )
+        #expect(resolved?.path == copy.path)
+    }
+
+    /// Nil is the signal that the conversation is gone. The restore path turns
+    /// that into "start clean" instead of keeping a session id whose
+    /// `--resume` would fail on the next turn and wedge the panel in `.error`.
+    @Test func resolveTranscriptReturnsNilWhenNothingExists() {
+        let missingCopy = FileManager.default.temporaryDirectory
+            .appendingPathComponent("does-not-exist-\(UUID().uuidString).jsonl")
+        let resolved = ClaudeSessionHistory.resolveTranscriptURL(
+            sessionId: "session-that-never-existed-\(UUID().uuidString)",
+            cwd: "/nonexistent/work/dir",
+            copiedAt: missingCopy.path
+        )
+        #expect(resolved == nil)
+    }
+
+    @Test func resolveTranscriptIgnoresAnEmptyCopiedPath() {
+        let resolved = ClaudeSessionHistory.resolveTranscriptURL(
+            sessionId: "session-that-never-existed-\(UUID().uuidString)",
+            cwd: "/nonexistent/work/dir",
+            copiedAt: ""
+        )
+        #expect(resolved == nil)
+    }
+
+    @Test func loadTranscriptAtURLReadsMessagesAndToleratesAMissingFile() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("transcript-load-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let url = directory.appendingPathComponent("t.jsonl")
+        try #"{"type":"user","message":{"content":"hola"}}"#
+            .write(to: url, atomically: true, encoding: .utf8)
+
+        let messages = await ClaudeSessionHistory.loadTranscript(at: url)
+        #expect(messages?.count == 1)
+        #expect(messages?.first?.plainText == "hola")
+
+        let missing = await ClaudeSessionHistory.loadTranscript(
+            at: directory.appendingPathComponent("missing.jsonl")
+        )
+        #expect(missing == nil)
+    }
+
     @Test func decodeTranscriptSkipsMetadataAndMalformedLines() {
         let jsonl = """
         {"type":"file-history-snapshot","snapshot":{}}

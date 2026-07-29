@@ -87,16 +87,52 @@ enum ClaudeSessionHistory {
     /// it defensively — malformed lines are skipped, never abort the
     /// load. Returns `nil` if the file doesn't exist or can't be read.
     static func loadTranscript(sessionId: String, cwd: String) async -> [ChatMessage]? {
+        guard let jsonlURL = transcriptURL(sessionId: sessionId, cwd: cwd) else { return nil }
+        return await loadTranscript(at: jsonlURL)
+    }
+
+    /// Same as `loadTranscript(sessionId:cwd:)` but reading a file chosen by
+    /// the caller.
+    ///
+    /// Saved projects copy each transcript into their own sidecar, because
+    /// Claude Code's history under `~/.claude/projects/` is outside our control
+    /// and a project reopened months later would otherwise come back empty.
+    /// See `resolveTranscriptURL(sessionId:cwd:copiedAt:)`.
+    static func loadTranscript(at url: URL) async -> [ChatMessage]? {
         await Task.detached(priority: .userInitiated) { () -> [ChatMessage]? in
-            guard let jsonlURL = transcriptURL(sessionId: sessionId, cwd: cwd),
-                  FileManager.default.fileExists(atPath: jsonlURL.path),
-                  let data = try? Data(contentsOf: jsonlURL),
+            guard FileManager.default.fileExists(atPath: url.path),
+                  let data = try? Data(contentsOf: url),
                   let text = String(data: data, encoding: .utf8)
             else { return nil }
 
             let messages = decodeTranscript(text: text)
             return messages.isEmpty ? nil : messages
         }.value
+    }
+
+    /// Which file actually backs a restored chat, preferring a copy captured
+    /// alongside a saved project over Claude Code's own history.
+    ///
+    /// `nil` means the conversation is gone. That answer matters: the caller
+    /// must then restore the panel *without* a resume id, because a chat that
+    /// keeps a `sessionId` whose transcript no longer exists sends
+    /// `--resume <id>` on the next turn, the CLI fails, and the panel is stuck
+    /// in an error state until the user runs `/clear`.
+    static func resolveTranscriptURL(
+        sessionId: String,
+        cwd: String,
+        copiedAt copiedPath: String?
+    ) -> URL? {
+        if let copiedPath, !copiedPath.isEmpty {
+            let copied = URL(fileURLWithPath: copiedPath)
+            if FileManager.default.fileExists(atPath: copied.path) {
+                return copied
+            }
+        }
+        guard let derived = transcriptURL(sessionId: sessionId, cwd: cwd),
+              FileManager.default.fileExists(atPath: derived.path)
+        else { return nil }
+        return derived
     }
 
     /// Parse the raw JSONL transcript text into renderable `ChatMessage`s,

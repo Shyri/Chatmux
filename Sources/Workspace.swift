@@ -1721,11 +1721,26 @@ extension Workspace {
                 : workingDirectory
             let trimmedSessionId = chatSnapshot?.sessionId?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let resumeId = (trimmedSessionId?.isEmpty == false) ? trimmedSessionId : nil
+            let candidateSessionId = (trimmedSessionId?.isEmpty == false) ? trimmedSessionId : nil
+            // Prefer a transcript copied next to a saved project over Claude
+            // Code's own history, which may have been pruned since.
+            let transcriptURL = candidateSessionId.flatMap {
+                ClaudeSessionHistory.resolveTranscriptURL(
+                    sessionId: $0,
+                    cwd: resolvedDirectory,
+                    copiedAt: chatSnapshot?.transcriptPath
+                )
+            }
+            // No transcript means the conversation is gone. Restoring with the
+            // session id anyway would send `--resume <id>` on the next turn,
+            // which fails and leaves the panel stuck in an error state until
+            // the user runs `/clear`. Start clean in the same cwd instead.
+            let resumeId = transcriptURL == nil ? nil : candidateSessionId
             guard let chatPanel = newClaudeChatSurface(
                 inPane: paneId,
                 workingDirectory: resolvedDirectory,
                 resumingSessionId: resumeId,
+                resumingTranscriptURL: transcriptURL,
                 focus: false
             ) else {
                 return nil
@@ -8959,6 +8974,10 @@ final class Workspace: Identifiable, ObservableObject {
         inPane paneId: PaneID,
         workingDirectory: String,
         resumingSessionId: String? = nil,
+        /// Transcript to hydrate from. Defaults to Claude Code's own history
+        /// for the session; a saved project passes its own copy instead, since
+        /// that history may have been pruned by the time it is reopened.
+        resumingTranscriptURL: URL? = nil,
         focus: Bool? = nil
     ) -> ClaudeChatPanel? {
         let shouldFocusNewTab = focus ?? (bonsplitController.focusedPaneId == paneId)
@@ -9015,11 +9034,15 @@ final class Workspace: Identifiable, ObservableObject {
         )
 
         if let resumingSessionId, !resumingSessionId.isEmpty {
-            Task { [weak claudeChatPanel] in
-                guard let messages = await ClaudeSessionHistory.loadTranscript(
+            let transcriptURL = resumingTranscriptURL
+                ?? ClaudeSessionHistory.transcriptURL(
                     sessionId: resumingSessionId,
                     cwd: workingDirectory
-                ) else { return }
+                )
+            Task { [weak claudeChatPanel] in
+                guard let transcriptURL,
+                      let messages = await ClaudeSessionHistory.loadTranscript(at: transcriptURL)
+                else { return }
                 await MainActor.run {
                     claudeChatPanel?.applyResumedTranscript(
                         sessionId: resumingSessionId,
