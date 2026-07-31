@@ -2615,6 +2615,7 @@ struct ClaudeChatPanelView: View {
             case .builtin: scopeTag = ""
             case .userCustom: scopeTag = " (user)"
             case .projectCustom: scopeTag = " (project)"
+            case .cliReported: scopeTag = " (claude)"
             }
             out += "- `/\(cmd.name)`\(scopeTag) — \(cmd.description)\n"
         }
@@ -5857,6 +5858,15 @@ private struct SlashCommandRow: View {
                 .background(Capsule().stroke(Color.secondary.opacity(0.4), lineWidth: 0.5))
         case .projectCustom:
             Text(String(localized: "claudeChat.slash.source.project", defaultValue: "project"))
+                .font(.system(size: 9))
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1)
+                .background(Capsule().stroke(Color.secondary.opacity(0.4), lineWidth: 0.5))
+        case .cliReported:
+            // Skills, plugin commands and the CLI's own built-ins: reported by
+            // the init event, backed by no file we can point at.
+            Text(String(localized: "claudeChat.slash.source.claude", defaultValue: "claude"))
                 .font(.system(size: 9))
                 .foregroundColor(.secondary)
                 .padding(.horizontal, 5)
