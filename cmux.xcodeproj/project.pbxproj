@@ -401,6 +401,9 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		CA52B0070000000000000000 /* CanvasPaneContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA52C0070000000000000000 /* CanvasPaneContent.swift */; };
 		C4A570030000000000000001 /* CanvasShortcutContextTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4A570030000000000000002 /* CanvasShortcutContextTests.swift */; };
 		CFA0000411000000FORKTEST /* ChatApprovalDedupePolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFA0000412000000FORKTEST /* ChatApprovalDedupePolicyTests.swift */; };
+		5732A0145732A0145732A014 /* ChatLazyContractProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0145732B0145732B014 /* ChatLazyContractProbe.swift */; };
+		5732A0155732A0155732A015 /* ChatLazyContractProbeKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0155732B0155732B015 /* ChatLazyContractProbeKey.swift */; };
+		D41A7C03D41A7C03D41A7C03 /* ChatLazyLayoutScaleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41A7C04D41A7C04D41A7C04 /* ChatLazyLayoutScaleTests.swift */; };
 		6565EC5A507F25D89323E1C9 /* ChatMcpHttpServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E736846EE87C39633BF7FD51 /* ChatMcpHttpServer.swift */; };
 		9358ED6C0B673D29EEDADCDC /* ChatMcpRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE53E85BE089D858B133162 /* ChatMcpRequest.swift */; };
 		6B7604793CDAE4FC30F643CF /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBEA3FF0E2CD31C56245F60D /* ChatMessage.swift */; };
@@ -817,6 +820,7 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		D75280040000000000000001 /* DynamicTracingSignpostInterval.swift in Sources */ = {isa = PBXBuildFile; fileRef = D75280040000000000000002 /* DynamicTracingSignpostInterval.swift */; };
 		D3622100A1B2C3D4E5F60718 /* EditableTextViewArrowKeyForwardingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3622101A1B2C3D4E5F60718 /* EditableTextViewArrowKeyForwardingTests.swift */; };
 		A7206C010000000000000001 /* EffectiveAppearanceObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7206C020000000000000001 /* EffectiveAppearanceObservation.swift */; };
+		5732A0165732A0165732A016 /* EnvironmentValues+ChatLazyContractProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0165732B0165732B016 /* EnvironmentValues+ChatLazyContractProbe.swift */; };
 		5732A0095732A0095732A009 /* EnvironmentValues+MinimalModeInvalidationProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0095732B0095732B009 /* EnvironmentValues+MinimalModeInvalidationProbe.swift */; };
 		5732A0135732A0135732A013 /* EnvironmentValues+SidebarLazyContractProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0135732B0135732B013 /* EnvironmentValues+SidebarLazyContractProbe.swift */; };
 		E4C001000000000000000001 /* ExtensionSidebarWorkspaceRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4C001000000000000000002 /* ExtensionSidebarWorkspaceRowView.swift */; };
@@ -2567,6 +2571,9 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		CA52C0070000000000000000 /* CanvasPaneContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CanvasPaneContent.swift"; sourceTree = "<group>"; };
 		C4A570030000000000000002 /* CanvasShortcutContextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanvasShortcutContextTests.swift; sourceTree = "<group>"; };
 		CFA0000412000000FORKTEST /* ChatApprovalDedupePolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatApprovalDedupePolicyTests.swift; sourceTree = "<group>"; };
+		5732B0145732B0145732B014 /* ChatLazyContractProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Debug/ChatLazyContractProbe.swift; sourceTree = "<group>"; };
+		5732B0155732B0155732B015 /* ChatLazyContractProbeKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Debug/ChatLazyContractProbeKey.swift"; sourceTree = "<group>"; };
+		D41A7C04D41A7C04D41A7C04 /* ChatLazyLayoutScaleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLazyLayoutScaleTests.swift; sourceTree = "<group>"; };
 		E736846EE87C39633BF7FD51 /* ChatMcpHttpServer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMcpHttpServer.swift; sourceTree = "<group>"; };
 		BDE53E85BE089D858B133162 /* ChatMcpRequest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMcpRequest.swift; sourceTree = "<group>"; };
 		FBEA3FF0E2CD31C56245F60D /* ChatMessage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
@@ -2922,6 +2929,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		D75280040000000000000002 /* DynamicTracingSignpostInterval.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DynamicTracingSignpostInterval.swift; sourceTree = "<group>"; };
 		D3622101A1B2C3D4E5F60718 /* EditableTextViewArrowKeyForwardingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableTextViewArrowKeyForwardingTests.swift; sourceTree = "<group>"; };
 		A7206C020000000000000001 /* EffectiveAppearanceObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EffectiveAppearanceObservation.swift; sourceTree = "<group>"; };
+		5732B0165732B0165732B016 /* EnvironmentValues+ChatLazyContractProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Debug/EnvironmentValues+ChatLazyContractProbe.swift"; sourceTree = "<group>"; };
 		5732B0095732B0095732B009 /* EnvironmentValues+MinimalModeInvalidationProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Debug/EnvironmentValues+MinimalModeInvalidationProbe.swift"; sourceTree = "<group>"; };
 		5732B0135732B0135732B013 /* EnvironmentValues+SidebarLazyContractProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Debug/EnvironmentValues+SidebarLazyContractProbe.swift"; sourceTree = "<group>"; };
 		E4C001000000000000000002 /* ExtensionSidebarWorkspaceRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtensionSidebarWorkspaceRowView.swift; sourceTree = "<group>"; };
@@ -4614,8 +4622,11 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 					5732B0085732B0085732B008 /* MinimalModeInvalidationProbeKey.swift */,
 					5732B0095732B0095732B009 /* EnvironmentValues+MinimalModeInvalidationProbe.swift */,
 					5732B0115732B0115732B011 /* SidebarLazyContractProbe.swift */,
+					5732B0145732B0145732B014 /* ChatLazyContractProbe.swift */,
 					5732B0125732B0125732B012 /* SidebarLazyContractProbeKey.swift */,
+					5732B0155732B0155732B015 /* ChatLazyContractProbeKey.swift */,
 					5732B0135732B0135732B013 /* EnvironmentValues+SidebarLazyContractProbe.swift */,
+					5732B0165732B0165732B016 /* EnvironmentValues+ChatLazyContractProbe.swift */,
 					5732B0025732B0025732B002 /* MinimalModeSidebarTitlebarControlsOverlay.swift */,
 					5732B0035732B0035732B003 /* MinimalModeTitlebarEventSurfaceLayer.swift */,
 					5732B0045732B0045732B004 /* WorkspaceContentMinimalModeSafeAreaModifier.swift */,
@@ -6172,6 +6183,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				C9A57514C9A57514C9A57514 /* SidebarScrollViewConfiguratorTests.swift */,
 				C9A57506C9A57506C9A57506 /* SidebarWorkspaceScrollLayoutTests.swift */,
 				D41A7C02D41A7C02D41A7C02 /* SidebarLazyLayoutScaleTests.swift */,
+				D41A7C04D41A7C04D41A7C04 /* ChatLazyLayoutScaleTests.swift */,
 				6707F0186707F0186707F018 /* SidebarWorkspaceContextMenuWindowTargetsTests.swift */,
 				6707F0246707F0246707F024 /* SidebarWorkspaceNotificationIndexTests.swift */,
 				43BEE8C1CB174E3AB4F89EDE /* CoalesceLatestPublisherDemandTests.swift */,
@@ -7225,6 +7237,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				CA52E0030000000000000000 /* CanvasInlineBrowserHostingEnvironment.swift in Sources */,
 				CA52B0060000000000000000 /* CanvasLayoutSettings.swift in Sources */,
 				CA52B0070000000000000000 /* CanvasPaneContent.swift in Sources */,
+				5732A0145732A0145732A014 /* ChatLazyContractProbe.swift in Sources */,
+				5732A0155732A0155732A015 /* ChatLazyContractProbeKey.swift in Sources */,
 				6565EC5A507F25D89323E1C9 /* ChatMcpHttpServer.swift in Sources */,
 				9358ED6C0B673D29EEDADCDC /* ChatMcpRequest.swift in Sources */,
 				6B7604793CDAE4FC30F643CF /* ChatMessage.swift in Sources */,
@@ -7380,6 +7394,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				D0B10014A1B2C3D4E5F60001 /* DragOverlayRoutingPolicy.swift in Sources */,
 				D75280040000000000000001 /* DynamicTracingSignpostInterval.swift in Sources */,
 				A7206C010000000000000001 /* EffectiveAppearanceObservation.swift in Sources */,
+					5732A0165732A0165732A016 /* EnvironmentValues+ChatLazyContractProbe.swift in Sources */,
 					5732A0095732A0095732A009 /* EnvironmentValues+MinimalModeInvalidationProbe.swift in Sources */,
 					5732A0135732A0135732A013 /* EnvironmentValues+SidebarLazyContractProbe.swift in Sources */,
 				E4C001000000000000000001 /* ExtensionSidebarWorkspaceRowView.swift in Sources */,
@@ -8545,6 +8560,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				0A0F00580000000000000003 /* CampfireSupportTestSupport.swift in Sources */,
 				C4A570030000000000000001 /* CanvasShortcutContextTests.swift in Sources */,
 				CFA0000411000000FORKTEST /* ChatApprovalDedupePolicyTests.swift in Sources */,
+				D41A7C03D41A7C03D41A7C03 /* ChatLazyLayoutScaleTests.swift in Sources */,
 				EB63D0986F76D1ECE3A0ABD5 /* ChatmuxProjectStoreTests.swift in Sources */,
 				CFB000511000000FORKTEST /* ChatmuxUpstreamSeamTests.swift in Sources */,
 				CFA0000111000000FORKTEST /* ChatPermissionRulesTests.swift in Sources */,

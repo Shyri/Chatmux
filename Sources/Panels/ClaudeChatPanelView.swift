@@ -780,6 +780,10 @@ struct ClaudeChatPanelView: View {
     /// pane.
     let hasUnreadNotification: Bool
     let onRequestPanelFocus: () -> Void
+#if DEBUG
+    // Test-only virtualization probe; default no-op. See ChatLazyContractProbe.
+    @Environment(\.chatLazyContractProbe) private var chatLazyContractProbe
+#endif
 
     // (`draft` lives on `panel` — see `ClaudeChatPanel.draft`. Read/write
     // it as `panel.draft` and pass `Binding($panel.draft)` to the input
@@ -1875,6 +1879,9 @@ struct ClaudeChatPanelView: View {
                         for: panel.id,
                         messages: visibleMessages
                     )
+#if DEBUG
+                    let _ = { chatLazyContractProbe.chatRowsProjection?() }()
+#endif
                     ForEach(Array(rows.enumerated()), id: \.element.id) { idx, row in
                         rowView(row, isLast: idx == rows.count - 1)
                             .id(row.id)
@@ -5252,6 +5259,12 @@ private struct TextBlockRow: View, Equatable {
     @Environment(\.chatFontSize) private var fontSize
     @State private var isExpanded: Bool = false
     @State private var didCopy: Bool = false
+#if DEBUG
+    // Plain-value environment probe (closure struct, not an object reference):
+    // set only by ChatLazyLayoutScaleTests, default no-op, and excluded from
+    // `==` like every other closure on this row. See ChatLazyContractProbe.
+    @Environment(\.chatLazyContractProbe) private var chatLazyContractProbe
+#endif
 
     /// Compare only data inputs so SwiftUI can skip `body` re-evaluation
     /// when nothing visible changed. Closures (`onRewindToHere`) and the
@@ -5273,6 +5286,9 @@ private struct TextBlockRow: View, Equatable {
     }
 
     var body: some View {
+#if DEBUG
+        let _ = { chatLazyContractProbe.chatRowBody?() }()
+#endif
         Group {
             switch role {
             case .user:
