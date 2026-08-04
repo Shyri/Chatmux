@@ -45,7 +45,12 @@ enum ClaudeStreamEvent {
         taskType: String?,
         status: String?,
         exitCode: String?,
-        summary: String?
+        summary: String?,
+        /// Human-readable label the harness assigns to the task, e.g.
+        /// "Fast-forward de dev, tag 5.32.1 y push". Present on
+        /// `task_started`; the only name we get for a shell whose
+        /// originating `tool_use` we never saw.
+        description: String?
     )
     case other(typeName: String)
 }
@@ -258,6 +263,9 @@ extension ClaudeStreamEvent {
         }
         let summary = dict["summary"] as? String
         let exitCode = parseExitCode(fromSummary: summary)
+        let description = (dict["description"] as? String)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .flatMap { $0.isEmpty ? nil : $0 }
         return .backgroundTask(
             phase: phase,
             taskId: taskId,
@@ -265,7 +273,8 @@ extension ClaudeStreamEvent {
             taskType: taskType,
             status: status,
             exitCode: exitCode,
-            summary: summary
+            summary: summary,
+            description: description
         )
     }
 

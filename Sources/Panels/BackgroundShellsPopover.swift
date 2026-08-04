@@ -78,7 +78,7 @@ struct BackgroundShellsPopover: View {
                 .foregroundColor(.secondary)
             Text(String(
                 localized: "claudeChat.bashes.empty",
-                defaultValue: "No background shells. They appear here when claude runs Bash with run_in_background: true."
+                defaultValue: "No background shells. They appear here when claude runs a command in the background."
             ))
             .font(.system(size: 11))
             .foregroundColor(.secondary)

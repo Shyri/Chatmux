@@ -1019,8 +1019,10 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
         /// `tool_result`.
         var shellId: String?
         /// The command claude requested, truncated to keep the row
-        /// readable in the popover.
-        let commandPreview: String
+        /// readable in the popover. Mutable because a row can start life
+        /// named only by its task id — when we hear about the shell before
+        /// its `tool_use` — and get upgraded once a real name shows up.
+        var commandPreview: String
         let startedAt: Date
         var status: Status
         /// Whether this is a command the user's agent explicitly ran, or one of
@@ -2191,7 +2193,9 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
         }
     }
 
-    fileprivate func noteBackgroundShellResult(_ result: ChatMessageBlock.ToolResult) {
+    /// Internal rather than fileprivate so the tests can replay the live
+    /// event order, where this lands *after* the task notification.
+    func noteBackgroundShellResult(_ result: ChatMessageBlock.ToolResult) {
         guard let idx = backgroundShells.firstIndex(where: { $0.toolUseId == result.toolUseId }) else {
             return
         }
@@ -2202,8 +2206,16 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
            let path = Self.parseOutputFilePath(fromContent: result.content) {
             backgroundShells[idx].outputFilePath = path
         }
-        if case .killed = backgroundShells[idx].status {
+        // The Bash `tool_result` ("Command running in background with ID: …")
+        // arrives *after* the harness' task_notification, and says nothing
+        // about the process actually exiting — it only reports the launch. So
+        // once a shell has reached a terminal state, this must not drag it
+        // back to .running.
+        switch backgroundShells[idx].status {
+        case .killed, .completed:
             return
+        case .starting, .running, .unknown:
+            break
         }
         if result.isError {
             backgroundShells[idx].status = .completed(exitCode: "error")
@@ -2571,14 +2583,15 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             }
             drainPendingDraftIfAny()
             refreshStatusLine()
-        case .backgroundTask(let phase, let taskId, let toolUseId, let taskType, let status, let exitCode, _):
+        case .backgroundTask(let phase, let taskId, let toolUseId, let taskType, let status, let exitCode, _, let description):
             applyBackgroundTaskEvent(
                 phase: phase,
                 taskId: taskId,
                 toolUseId: toolUseId,
                 taskType: taskType,
                 status: status,
-                exitCode: exitCode
+                exitCode: exitCode,
+                description: description
             )
         case .other:
             break
@@ -2590,13 +2603,16 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
     /// get for "the shell finished" — the original Bash `tool_result`
     /// just reports "Command running in background" and never updates
     /// when the actual process exits.
-    private func applyBackgroundTaskEvent(
+    /// Internal rather than private so the tests can drive it directly with
+    /// the exact event shapes seen on the wire.
+    func applyBackgroundTaskEvent(
         phase: BackgroundTaskPhase,
         taskId: String,
         toolUseId: String?,
         taskType: String?,
         status: String?,
-        exitCode: String?
+        exitCode: String?,
+        description: String? = nil
     ) {
         guard !taskId.isEmpty else { return }
         // Only background shells flow through `backgroundShells`. Other
@@ -2616,25 +2632,39 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             return backgroundShells.firstIndex(where: { $0.shellId == taskId })
         }()
         guard let index = matchedIndex else {
-            // No matching row — likely because claude restarted (with
-            // --resume) and we missed the original `assistant` tool_use.
-            // Synthesise a row so the user still sees the shell.
-            if phase == .started {
-                backgroundShells.append(BackgroundShell(
-                    toolUseId: toolUseId ?? "task:\(taskId)",
-                    shellId: taskId,
-                    commandPreview: String(
-                        format: String(
-                            localized: "claudeChat.bashes.unknownCommand",
-                            defaultValue: "(background shell %@)"
-                        ),
-                        taskId
-                    ),
-                    startedAt: Date(),
-                    status: .running
-                ))
-            }
+            // No matching row. This is the normal path, not an edge case:
+            // claude stopped setting `run_in_background` on the Bash input
+            // and now moves commands to the background on its own, so
+            // `noteBashToolUseIfBackground` never sees them and these events
+            // are the first we hear of the shell. It also covers the original
+            // case — a `--resume` where we missed the `assistant` tool_use.
+            //
+            // Synthesise the row on any phase: a `task_notification` can be
+            // the first event we match, and dropping it would leave a shell
+            // that already exited showing as live.
+            let resolved = resolveBackgroundShellStatus(rawStatus: status, exitCode: exitCode)
+            let initialStatus: BackgroundShell.Status = {
+                if case .set(let value) = resolved { return value }
+                return phase == .started ? .running : .unknown
+            }()
+            let preview = backgroundShellPreview(toolUseId: toolUseId, description: description, taskId: taskId)
+            backgroundShells.append(BackgroundShell(
+                toolUseId: toolUseId ?? "task:\(taskId)",
+                shellId: taskId,
+                commandPreview: preview.text,
+                startedAt: Date(),
+                status: initialStatus,
+                kind: preview.kind
+            ))
             return
+        }
+        // A later event can carry a better name than the one we settled on
+        // (the tool_use may have streamed in after `task_started`), so keep
+        // upgrading the placeholder until we have something real.
+        if backgroundShells[index].commandPreview == Self.anonymousShellPreview(taskId: taskId) {
+            let preview = backgroundShellPreview(toolUseId: toolUseId, description: description, taskId: taskId)
+            backgroundShells[index].commandPreview = preview.text
+            backgroundShells[index].kind = preview.kind
         }
         if backgroundShells[index].shellId == nil {
             backgroundShells[index].shellId = taskId
@@ -2643,6 +2673,55 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
         if case .set(let newStatus) = resolved {
             backgroundShells[index].status = newStatus
         }
+    }
+
+    /// Name for a shell we learned about from a `task_*` event, best source
+    /// first: the real command from the originating `Bash` tool_use, then the
+    /// harness' own `description` ("Fast-forward de dev, tag 5.32.1 y push"),
+    /// then an anonymous placeholder. Only the last one is useless to read,
+    /// and it is now genuinely the last resort.
+    private func backgroundShellPreview(
+        toolUseId: String?,
+        description: String?,
+        taskId: String
+    ) -> (text: String, kind: BackgroundShell.Kind) {
+        if let command = bashCommand(forToolUseId: toolUseId), !command.isEmpty {
+            let kind = Self.classifyBackgroundCommand(command)
+            return (Self.backgroundCommandPreview(command, kind: kind), kind)
+        }
+        if let description, !description.isEmpty {
+            return (description, .userCommand)
+        }
+        return (Self.anonymousShellPreview(taskId: taskId), .userCommand)
+    }
+
+    /// The command of a `Bash` tool_use already in the transcript. The events
+    /// arrive interleaved with the `assistant` message that carries it, so by
+    /// the time `task_started` lands the block is usually there.
+    private func bashCommand(forToolUseId toolUseId: String?) -> String? {
+        guard let toolUseId, !toolUseId.isEmpty else { return nil }
+        for message in messages.reversed() {
+            for block in message.blocks {
+                guard case .toolUse(let toolUse) = block,
+                      toolUse.id == toolUseId,
+                      toolUse.name == "Bash",
+                      let input = parseJSONObject(toolUse.inputJSON),
+                      let command = input["command"] as? String
+                else { continue }
+                return command.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+        }
+        return nil
+    }
+
+    static func anonymousShellPreview(taskId: String) -> String {
+        String(
+            format: String(
+                localized: "claudeChat.bashes.unknownCommand",
+                defaultValue: "(background shell %@)"
+            ),
+            taskId
+        )
     }
 
     private enum BackgroundShellStatusResolution {

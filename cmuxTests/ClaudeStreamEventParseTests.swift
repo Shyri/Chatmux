@@ -167,7 +167,7 @@ import Testing
     @Test func taskStartedDecodesRunningPhase() throws {
         let line = #"{"type":"system","subtype":"task_started","task_id":"t1","tool_use_id":"u1","task_type":"local_bash"}"#
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .backgroundTask(phase, taskId, toolUseId, taskType, status, _, _) = event else {
+        guard case let .backgroundTask(phase, taskId, toolUseId, taskType, status, _, _, _) = event else {
             Issue.record("expected .backgroundTask, got \(event)")
             return
         }
@@ -181,7 +181,7 @@ import Testing
     @Test func taskUpdatedPullsStatusFromPatch() throws {
         let line = #"{"type":"system","subtype":"task_updated","task_id":"t1","patch":{"status":"completed"}}"#
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .backgroundTask(phase, _, _, _, status, _, _) = event else {
+        guard case let .backgroundTask(phase, _, _, _, status, _, _, _) = event else {
             Issue.record("expected .backgroundTask")
             return
         }
@@ -192,7 +192,7 @@ import Testing
     @Test func taskNotificationParsesExitCodeFromSummary() throws {
         let line = #"{"type":"system","subtype":"task_notification","task_id":"t1","status":"completed","summary":"shell completed (exit code 0)"}"#
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .backgroundTask(phase, _, _, _, status, exitCode, summary) = event else {
+        guard case let .backgroundTask(phase, _, _, _, status, exitCode, summary, _) = event else {
             Issue.record("expected .backgroundTask")
             return
         }
@@ -205,7 +205,7 @@ import Testing
     @Test func taskNotificationParsesNegativeExitCode() throws {
         let line = #"{"type":"system","subtype":"task_notification","task_id":"t1","summary":"failed (exit code -1)"}"#
         let event = try #require(try ClaudeStreamEvent.parse(line: line))
-        guard case let .backgroundTask(_, _, _, _, _, exitCode, _) = event else {
+        guard case let .backgroundTask(_, _, _, _, _, exitCode, _, _) = event else {
             Issue.record("expected .backgroundTask")
             return
         }
