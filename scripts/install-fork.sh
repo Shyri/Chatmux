@@ -94,8 +94,52 @@ if [[ "${CMUX_SKIP_ZIG_BUILD:-}" == "1" ]]; then
 fi
 XCODEBUILD_ARGS+=(build)
 
+# Precompiled module caches go stale when a dependency's headers change:
+# `-clang-build-session-file` tells clang not to revalidate a .pcm's inputs,
+# so a rebuilt Sparkle.framework leaves behind a .pcm compiled against the
+# old headers and every later build dies with "has been modified since the
+# module file was built". The cache is pure derived data, so the fix is to
+# drop it and build again.
+# Scoped to cmux's own derived data: other projects' caches are none of this
+# script's business, even though clearing them would be harmless.
+stale_module_cache_dirs() {
+  find "$HOME/Library/Developer/Xcode/DerivedData" \
+    -maxdepth 4 \
+    -type d \
+    -path "*/${BASE_APP_NAME}-*/Build/Intermediates.noindex/SwiftExplicitPrecompiledModules" \
+    -print 2>/dev/null
+}
+
+run_build() {
+  local log="$1"
+  set +e
+  xcodebuild "${XCODEBUILD_ARGS[@]}" 2>&1 | tee "$log"
+  local status="${PIPESTATUS[0]}"
+  set -e
+  return "$status"
+}
+
 echo "==> Building cmux (Release)..."
-xcodebuild "${XCODEBUILD_ARGS[@]}"
+# Deliberately not an EXIT trap: a later trap in this script would replace it.
+BUILD_LOG="$(mktemp -t cmux-install-fork-build)"
+BUILD_STATUS=0
+
+if ! run_build "$BUILD_LOG"; then
+  if grep -q "has been modified since the module file" "$BUILD_LOG"; then
+    echo "==> Stale precompiled module cache detected; clearing and retrying once..." >&2
+    while IFS= read -r dir; do
+      [[ -n "$dir" ]] || continue
+      echo "    rm -rf $dir" >&2
+      rm -rf "$dir"
+    done < <(stale_module_cache_dirs)
+    run_build "$BUILD_LOG" || BUILD_STATUS=1
+  else
+    BUILD_STATUS=1
+  fi
+fi
+
+rm -f "$BUILD_LOG"
+[[ "$BUILD_STATUS" -eq 0 ]] || exit 1
 
 SRC_APP_PATH="$(
   find "$HOME/Library/Developer/Xcode/DerivedData" -path "*/Build/Products/Release/${BASE_APP_NAME}.app" -print0 \
