@@ -291,6 +291,29 @@ struct ChatDropContainer<Content: View>: NSViewRepresentable {
         return view
     }
 
+    /// Answer the proposal directly instead of letting SwiftUI ask AppKit.
+    ///
+    /// This is a pure drop zone pinned to fill its slot, but without
+    /// `sizeThatFits` SwiftUI sizes the representable through AppKit's fitting
+    /// size, which asks the nested `NSHostingView` to measure the whole chat
+    /// subtree with an unspecified proposal. That measurement walks the
+    /// transcript's `LazyVStack` in full — captured in the wild at 17% of the
+    /// main thread in `LazyStack.measureEstimates`, with `ChatRow` copies and
+    /// `ChatDropContainer` itself in the hot frames, while the app sat pegged
+    /// at 100% CPU.
+    ///
+    /// Note this container hosts SwiftUI inside AppKit inside SwiftUI. A scale
+    /// test that mounts the chat panel on its own will NOT reproduce the
+    /// defeat, because the sandwich is what creates it.
+    func sizeThatFits(
+        _ proposal: ProposedViewSize,
+        nsView: ChatDropZoneNSView,
+        context: Context
+    ) -> CGSize? {
+        guard let width = proposal.width, let height = proposal.height else { return nil }
+        return CGSize(width: width, height: height)
+    }
+
     func updateNSView(_ nsView: ChatDropZoneNSView, context: Context) {
         nsView.hostingView?.rootView = AnyView(content)
         nsView.onURLs = onURLs
