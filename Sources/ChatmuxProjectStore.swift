@@ -27,8 +27,11 @@ final class ChatmuxProjectStore: ObservableObject {
     init(
         directoryURL: URL? = ChatmuxProjectSchema.defaultDirectoryURL(),
         fileManager: FileManager = .default,
+        // Resolve, don't derive: a chat that ran `EnterWorktree` keeps its
+        // transcript under the worktree's encoded directory, so deriving from
+        // the panel's cwd would copy nothing into the saved project.
         transcriptSource: @escaping (_ sessionId: String, _ cwd: String) -> URL? = {
-            ClaudeSessionHistory.transcriptURL(sessionId: $0, cwd: $1)
+            ClaudeSessionHistory.resolveTranscriptURL(sessionId: $0, cwd: $1, copiedAt: nil)
         }
     ) {
         self.directoryURL = directoryURL

@@ -9034,10 +9034,14 @@ final class Workspace: Identifiable, ObservableObject {
         )
 
         if let resumingSessionId, !resumingSessionId.isEmpty {
+            // Resolve rather than derive: a chat that ran `EnterWorktree` has
+            // its transcript under the worktree's encoded directory, not the
+            // cwd this panel was created with.
             let transcriptURL = resumingTranscriptURL
-                ?? ClaudeSessionHistory.transcriptURL(
+                ?? ClaudeSessionHistory.resolveTranscriptURL(
                     sessionId: resumingSessionId,
-                    cwd: workingDirectory
+                    cwd: workingDirectory,
+                    copiedAt: nil
                 )
             Task { [weak claudeChatPanel] in
                 guard let transcriptURL,

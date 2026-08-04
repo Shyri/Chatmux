@@ -149,6 +149,99 @@ import Testing
         #expect(resolved == nil)
     }
 
+    // MARK: - Worktree fallback
+
+    /// The regression this fallback exists for. A chat that ran
+    /// `EnterWorktree` keeps running under `<repo>/.claude/worktrees/<n>`, so
+    /// Claude Code writes its transcript under *that* encoded directory — but
+    /// the panel snapshot still carries the cwd the chat was launched from.
+    /// Deriving the path from that cwd misses, `loadTranscript` returns nil,
+    /// and the panel restores empty AND without a resume id, silently losing
+    /// the conversation. Measured on one real history: 10 of 47 restorable
+    /// chats, every transcript still present on disk.
+    @Test func resolveTranscriptFindsATranscriptMovedByEnterWorktree() throws {
+        let projects = FileManager.default.temporaryDirectory
+            .appendingPathComponent("projects-\(UUID().uuidString)", isDirectory: true)
+        let launchCwd = "/Users/me/code/app"
+        // What the panel snapshot records...
+        let launchDir = projects.appendingPathComponent("-Users-me-code-app", isDirectory: true)
+        // ...and where the conversation actually ended up.
+        let worktreeDir = projects.appendingPathComponent(
+            "-Users-me-code-app--claude-worktrees-465",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(at: launchDir, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: worktreeDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: projects) }
+
+        let sessionId = UUID().uuidString
+        let transcript = worktreeDir.appendingPathComponent("\(sessionId).jsonl")
+        try #"{"type":"user","message":{"content":"hola"}}"#
+            .write(to: transcript, atomically: true, encoding: .utf8)
+
+        let resolved = ClaudeSessionHistory.resolveTranscriptURL(
+            sessionId: sessionId,
+            cwd: launchCwd,
+            copiedAt: nil,
+            projectsDirectory: projects
+        )
+        // Compare symlink-resolved paths: the scan goes through
+        // `contentsOfDirectory`, which hands back `/private/var/...` while the
+        // fixture URL is still the `/var/...` symlink.
+        #expect(
+            resolved?.resolvingSymlinksInPath().path
+                == transcript.resolvingSymlinksInPath().path
+        )
+    }
+
+    /// A session id that exists nowhere must still resolve to nil, so the
+    /// caller keeps restoring clean instead of resuming a dead conversation.
+    @Test func findTranscriptReturnsNilForAnUnknownSession() throws {
+        let projects = FileManager.default.temporaryDirectory
+            .appendingPathComponent("projects-\(UUID().uuidString)", isDirectory: true)
+        let dir = projects.appendingPathComponent("-some-cwd", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: projects) }
+        try "x".write(
+            to: dir.appendingPathComponent("\(UUID().uuidString).jsonl"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let found = ClaudeSessionHistory.findTranscript(
+            sessionId: UUID().uuidString,
+            in: projects
+        )
+        #expect(found == nil)
+    }
+
+    /// The scan is a fallback, not a replacement: a project's own copy still
+    /// wins, because Claude Code's history may have been pruned since.
+    @Test func resolveTranscriptStillPrefersTheProjectCopyOverTheScan() throws {
+        let projects = FileManager.default.temporaryDirectory
+            .appendingPathComponent("projects-\(UUID().uuidString)", isDirectory: true)
+        let dir = projects.appendingPathComponent("-elsewhere", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: projects) }
+
+        let sessionId = UUID().uuidString
+        try "scanned".write(
+            to: dir.appendingPathComponent("\(sessionId).jsonl"),
+            atomically: true,
+            encoding: .utf8
+        )
+        let copy = projects.appendingPathComponent("copy.jsonl")
+        try "copied".write(to: copy, atomically: true, encoding: .utf8)
+
+        let resolved = ClaudeSessionHistory.resolveTranscriptURL(
+            sessionId: sessionId,
+            cwd: "/whatever",
+            copiedAt: copy.path,
+            projectsDirectory: projects
+        )
+        #expect(resolved?.path == copy.path)
+    }
+
     @Test func loadTranscriptAtURLReadsMessagesAndToleratesAMissingFile() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("transcript-load-\(UUID().uuidString)", isDirectory: true)

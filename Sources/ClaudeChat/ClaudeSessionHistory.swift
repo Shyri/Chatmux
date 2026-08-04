@@ -22,7 +22,7 @@ enum ClaudeSessionHistory {
         sessionId: String,
         cwd: String
     ) -> TurnFileBackups? {
-        guard let jsonlURL = transcriptURL(sessionId: sessionId, cwd: cwd),
+        guard let jsonlURL = resolveTranscriptURL(sessionId: sessionId, cwd: cwd, copiedAt: nil),
               let data = try? Data(contentsOf: jsonlURL),
               let text = String(data: data, encoding: .utf8)
         else { return nil }
@@ -87,7 +87,11 @@ enum ClaudeSessionHistory {
     /// it defensively — malformed lines are skipped, never abort the
     /// load. Returns `nil` if the file doesn't exist or can't be read.
     static func loadTranscript(sessionId: String, cwd: String) async -> [ChatMessage]? {
-        guard let jsonlURL = transcriptURL(sessionId: sessionId, cwd: cwd) else { return nil }
+        guard let jsonlURL = resolveTranscriptURL(
+            sessionId: sessionId,
+            cwd: cwd,
+            copiedAt: nil
+        ) else { return nil }
         return await loadTranscript(at: jsonlURL)
     }
 
@@ -121,7 +125,8 @@ enum ClaudeSessionHistory {
     static func resolveTranscriptURL(
         sessionId: String,
         cwd: String,
-        copiedAt copiedPath: String?
+        copiedAt copiedPath: String?,
+        projectsDirectory: URL? = nil
     ) -> URL? {
         if let copiedPath, !copiedPath.isEmpty {
             let copied = URL(fileURLWithPath: copiedPath)
@@ -129,10 +134,54 @@ enum ClaudeSessionHistory {
                 return copied
             }
         }
-        guard let derived = transcriptURL(sessionId: sessionId, cwd: cwd),
-              FileManager.default.fileExists(atPath: derived.path)
-        else { return nil }
-        return derived
+        if let derived = transcriptURL(sessionId: sessionId, cwd: cwd),
+           FileManager.default.fileExists(atPath: derived.path) {
+            return derived
+        }
+        // The derived path is a guess: it assumes the conversation still lives
+        // under the cwd the panel was launched from. `EnterWorktree` breaks
+        // that assumption — Claude Code follows the CLI into
+        // `<repo>/.claude/worktrees/<n>` and writes the transcript under that
+        // encoded directory instead, while the panel snapshot still carries the
+        // original cwd. Measured against one real history: 10 of 47 restorable
+        // chats resolved to nothing this way, each with its transcript sitting
+        // on disk under a worktree directory.
+        //
+        // Session ids are UUIDs, so a filename match anywhere under
+        // `~/.claude/projects` is unambiguous. Only runs when the cheap path
+        // misses.
+        return findTranscript(sessionId: sessionId, in: projectsDirectory)
+    }
+
+    /// Locate `<sessionId>.jsonl` by scanning the per-cwd project directories.
+    ///
+    /// Used as the fallback in `resolveTranscriptURL` when the cwd-derived path
+    /// misses. `projectsDirectory` is injectable so tests can point at a
+    /// fixture tree instead of the real `~/.claude/projects`.
+    static func findTranscript(sessionId: String, in projectsDirectory: URL? = nil) -> URL? {
+        let trimmed = sessionId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let root = projectsDirectory ?? defaultProjectsDirectory()
+        let fileManager = FileManager.default
+        guard let entries = try? fileManager.contentsOfDirectory(
+            at: root,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return nil }
+
+        let filename = "\(trimmed).jsonl"
+        for directory in entries {
+            let candidate = directory.appendingPathComponent(filename)
+            if fileManager.fileExists(atPath: candidate.path) {
+                return candidate
+            }
+        }
+        return nil
+    }
+
+    static func defaultProjectsDirectory() -> URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".claude/projects", isDirectory: true)
     }
 
     /// Parse the raw JSONL transcript text into renderable `ChatMessage`s,
@@ -161,8 +210,7 @@ enum ClaudeSessionHistory {
     static func transcriptURL(sessionId: String, cwd: String) -> URL? {
         let encoded = encodeCwd(cwd)
         guard !encoded.isEmpty else { return nil }
-        return FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".claude/projects", isDirectory: true)
+        return defaultProjectsDirectory()
             .appendingPathComponent(encoded, isDirectory: true)
             .appendingPathComponent("\(sessionId).jsonl")
     }
