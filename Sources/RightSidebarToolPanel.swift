@@ -305,7 +305,7 @@ struct RightSidebarToolPanelView: View {
             }
         case .gitStatus:
             if let workspace = panel.attachedWorkspace {
-                GitStatusSidebarView(workspace: workspace)
+                GitStatusSidebarView(workspace: workspace, onOpenFilePreview: panel.openFilePreview)
                     .id(workspace.id)
             } else {
                 EmptyView()

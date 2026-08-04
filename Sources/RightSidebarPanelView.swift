@@ -440,7 +440,7 @@ struct RightSidebarPanelView: View {
                 }
             case .gitStatus:
                 if let ws = workspace {
-                    GitStatusSidebarView(workspace: ws)
+                    GitStatusSidebarView(workspace: ws, onOpenFilePreview: onOpenFilePreview)
                         .id(ws.id)
                 } else {
                     Color.clear
@@ -848,9 +848,14 @@ final class GitStatusStore: ObservableObject {
 }
 
 /// SourceTree-style "changes" viewer: lists working-copy files grouped by
-/// staged / modified / untracked. Click a row to open the working-tree diff.
+/// staged / modified / untracked. Click a row to open the working-tree diff;
+/// right-click to open the file itself.
 struct GitStatusSidebarView: View {
     @ObservedObject var workspace: Workspace
+    /// Same opener the file explorer uses, so "Open in Editor" here lands in
+    /// the same place — and honours the same preference — as double-clicking
+    /// the file in the Files panel.
+    let onOpenFilePreview: (String) -> Void
     @StateObject private var store = GitStatusStore()
 
     var body: some View {
@@ -954,7 +959,53 @@ struct GitStatusSidebarView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture { openDiff(file) }
+        .contextMenu { fileRowMenuItems(file) }
         .help(file.path)
+    }
+
+    @ViewBuilder
+    private func fileRowMenuItems(_ file: GitStatusFile) -> some View {
+        // A deleted file has no working-copy content left, so opening or
+        // revealing it would fail silently. Its diff still works.
+        let url = absoluteURL(for: file)
+        let exists = url.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+        Button {
+            guard let url else { return }
+            performFileExplorerFileOpen(path: url.path, onOpenFilePreview: onOpenFilePreview)
+        } label: {
+            Text(String(localized: "gitStatus.row.openInEditor", defaultValue: "Open in Editor"))
+        }
+        .disabled(!exists)
+        Button {
+            openDiff(file)
+        } label: {
+            Text(String(localized: "gitStatus.row.showDiff", defaultValue: "Show Diff"))
+        }
+        Divider()
+        Button {
+            guard let url else { return }
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        } label: {
+            Text(String(localized: "fileExplorer.contextMenu.revealInFinder", defaultValue: "Reveal in Finder"))
+        }
+        .disabled(!exists)
+        Button {
+            guard let url else { return }
+            let pasteboard = NSPasteboard.general
+            pasteboard.clearContents()
+            pasteboard.setString(url.path, forType: .string)
+        } label: {
+            Text(String(localized: "fileExplorer.contextMenu.copyPath", defaultValue: "Copy Path"))
+        }
+        .disabled(url == nil)
+    }
+
+    /// `git status --porcelain` reports paths relative to the repository root,
+    /// which is the workspace directory here.
+    private func absoluteURL(for file: GitStatusFile) -> URL? {
+        guard !workspace.currentDirectory.isEmpty else { return nil }
+        return URL(fileURLWithPath: workspace.currentDirectory)
+            .appendingPathComponent(file.path)
     }
 
     private func color(for code: String) -> Color {

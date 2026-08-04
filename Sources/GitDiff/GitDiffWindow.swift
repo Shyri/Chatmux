@@ -326,16 +326,34 @@ struct GitDiffWindowView: View {
     @State private var isApproving: Bool = false
     @State private var approveMessage: String? = nil
     @State private var expandedBlocks: Set<Int> = []
+    @State private var isFileListCollapsed: Bool
+
+    init(viewModel: GitDiffViewModel) {
+        self.viewModel = viewModel
+        // A diff scoped to one pathspec — what the Changes sidebar opens on a
+        // click — has nothing to navigate to, so the file list would be a
+        // single row taking 300 pt. Start it collapsed; the toolbar button
+        // brings it back.
+        _isFileListCollapsed = State(initialValue: viewModel.spec.pathspec?.count == 1)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
-            HSplitView {
-                fileListPane
-                    .frame(minWidth: 60, idealWidth: 300)
+            // The whole split is swapped rather than dropping one child of a
+            // live `HSplitView`: an emptied-out pane leaves its divider
+            // stranded against the window edge.
+            if showsFileList {
+                HSplitView {
+                    fileListPane
+                        .frame(minWidth: 60, idealWidth: 300)
+                    diffPane
+                        .frame(minWidth: 400, maxWidth: .infinity)
+                }
+            } else {
                 diffPane
-                    .frame(minWidth: 400, maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .frame(minWidth: 900, minHeight: 500)
@@ -365,6 +383,16 @@ struct GitDiffWindowView: View {
             onNext: goToNextHunk,
             onEscape: closeWindow
         ))
+    }
+
+    /// Collapsing only holds while there is a diff on screen. When the file
+    /// list failed to load, came back empty, or nothing got auto-selected, the
+    /// pane carries the explanation — and the "Fetch and retry" button — so
+    /// hiding it would leave the window with no way out.
+    private var showsFileList: Bool {
+        guard isFileListCollapsed else { return true }
+        if viewModel.isLoadingFiles { return false }
+        return viewModel.selectedFile == nil && !viewModel.overviewSelected
     }
 
     private func rebuildPrepared() {
@@ -481,6 +509,15 @@ struct GitDiffWindowView: View {
 
     private var header: some View {
         HStack(spacing: 10) {
+            Button {
+                isFileListCollapsed.toggle()
+            } label: {
+                Image(systemName: "sidebar.leading")
+            }
+            .buttonStyle(.borderless)
+            .help(isFileListCollapsed
+                ? String(localized: "diff.fileList.show", defaultValue: "Show file list")
+                : String(localized: "diff.fileList.hide", defaultValue: "Hide file list"))
             Text(viewModel.spec.title)
                 .font(.headline)
             Text(rangeLabel)

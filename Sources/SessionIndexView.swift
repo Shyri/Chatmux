@@ -604,8 +604,15 @@ private struct SessionRow: View, Equatable {
         .background(previewPopoverHost)
         .onHover { isHovered = $0 }
         .help(helpText)
+        // Double-click resumes: the reason to reach for a session in the Vault
+        // is almost always "carry on with this one". Reading it without
+        // resuming stays available as "Preview Transcript" in the menu.
         .onTapGesture(count: 2) {
-            onPreviewPresentationChange(true)
+            guard let onResume else {
+                onPreviewPresentationChange(true)
+                return
+            }
+            onResume(entry)
         }
         .onDrag {
             sessionDragItemProvider(for: entry)
@@ -622,7 +629,11 @@ private struct SessionRow: View, Equatable {
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .contextMenu {
-            sessionRowMenuItems(entry: entry, onResume: onResume)
+            sessionRowMenuItems(
+                entry: entry,
+                onResume: onResume,
+                onPreview: { onPreviewPresentationChange(true) }
+            )
         }
     }
 
@@ -679,13 +690,26 @@ private struct SessionRow: View, Equatable {
 /// free `@ViewBuilder` so SessionRow and PopoverRow both attach the same set
 /// without duplicating the button list or the action helpers.
 @ViewBuilder
-private func sessionRowMenuItems(entry: SessionEntry, onResume: ((SessionEntry) -> Void)?) -> some View {
+private func sessionRowMenuItems(
+    entry: SessionEntry,
+    onResume: ((SessionEntry) -> Void)?,
+    onPreview: (() -> Void)? = nil
+) -> some View {
     if let onResume {
         Button {
             onResume(entry)
         } label: {
             Text(String(localized: "sessionIndex.row.resume", defaultValue: "Resume in New Tab"))
         }
+    }
+    if let onPreview {
+        Button {
+            onPreview()
+        } label: {
+            Text(String(localized: "sessionIndex.row.preview", defaultValue: "Preview Transcript"))
+        }
+    }
+    if onResume != nil || onPreview != nil {
         Divider()
     }
     if let url = entry.fileURL {
