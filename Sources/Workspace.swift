@@ -13236,11 +13236,16 @@ extension Workspace: BonsplitDelegate {
                 let workingDirectory = cwd.isEmpty
                     ? FileManager.default.homeDirectoryForCurrentUser.path
                     : cwd
-                _ = newClaudeChatSurface(
-                    inPane: pane,
-                    workingDirectory: workingDirectory,
-                    focus: true
-                )
+                // Same launcher as the File menu: ask where first, defaulting
+                // to this pane's directory. One "new chat" path for every
+                // entrypoint.
+                if let tabManager = owningTabManager {
+                    NewChatLauncher.shared.present(
+                        over: NSApp.keyWindow ?? NSApp.mainWindow,
+                        tabManager: tabManager,
+                        initialDirectory: workingDirectory
+                    )
+                }
             }
             return
         }
@@ -13340,11 +13345,13 @@ extension Workspace: BonsplitDelegate {
             let workingDirectory = cwd.isEmpty
                 ? FileManager.default.homeDirectoryForCurrentUser.path
                 : cwd
-            _ = newClaudeChatSurface(
-                inPane: pane,
-                workingDirectory: workingDirectory,
-                focus: true
-            )
+            if let tabManager = owningTabManager {
+                NewChatLauncher.shared.present(
+                    over: NSApp.keyWindow ?? NSApp.mainWindow,
+                    tabManager: tabManager,
+                    initialDirectory: workingDirectory
+                )
+            }
         default:
             _ = newTerminalSurface(inPane: pane, inheritWorkingDirectoryFallback: true)
         }

@@ -210,7 +210,10 @@ final class SessionIndexStore: ObservableObject {
         }
     }
     @Published private(set) var isLoading: Bool = false
-    @Published var scopeToCurrentDirectory: Bool = false {
+    /// On by default: both places that show this list — the Vault and the new
+    /// chat launcher — are about the folder in front of you, so the unscoped
+    /// firehose is the exception, not the starting point.
+    @Published var scopeToCurrentDirectory: Bool = true {
         didSet {
             guard scopeToCurrentDirectory != oldValue else { return }
             invalidateSectionsCache()

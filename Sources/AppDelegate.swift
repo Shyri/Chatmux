@@ -15728,7 +15728,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
                 onExecuted?()
                 return true
             case .newClaudeChat:
-                guard context.tabManager.openClaudeChat() != nil else { return false }
+                // Same launcher the File menu uses: one "new chat" path, so
+                // both entrypoints ask where before opening.
+                NewChatLauncher.shared.present(
+                    over: NSApp.keyWindow ?? NSApp.mainWindow,
+                    tabManager: context.tabManager
+                )
                 onExecuted?()
                 return true
             }

@@ -14,13 +14,18 @@ private func rightSidebarDebugResponder(_ responder: NSResponder?) -> String {
 
 /// Mode shown in the right sidebar (the panel toggled by ⌘⌥B).
 enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
+    // Declaration order is the order the picker shows: `availableModes` is
+    // `allCases.filter { … }`. GitLab and Changes lead because they are the
+    // per-workspace views you act on; the Vault is a browse-everything list, so
+    // it sits at the end. Raw values are pinned strings, so reordering does not
+    // touch persisted state or the CLI vocabulary.
     case files
     case find
-    case sessions
+    case gitStatus = "git-status"
+    case gitlab
     case feed
     case dock
-    case gitlab
-    case gitStatus = "git-status"
+    case sessions
     case customSidebar = "custom-sidebar"
 
     var label: String {

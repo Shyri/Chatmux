@@ -776,7 +776,13 @@ struct cmuxApp: App {
                         defaultValue: "New Claude Chat Tab"
                     )
                 ) {
-                    _ = activeTabManager.openClaudeChat()
+                    // Ask where before opening: the launcher picks the working
+                    // directory and offers that directory's existing sessions,
+                    // so a new chat can start fresh or resume one.
+                    NewChatLauncher.shared.present(
+                        over: NSApp.keyWindow ?? NSApp.mainWindow,
+                        tabManager: activeTabManager
+                    )
                 }
             }
 

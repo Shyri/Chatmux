@@ -1161,6 +1161,8 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		596100000000000000000001 /* NativeNotificationFallbackCommandTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 596100000000000000000002 /* NativeNotificationFallbackCommandTests.swift */; };
 		A6AC72030000000000000001 /* NativeSpinner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6AC72030000000000000002 /* NativeSpinner.swift */; };
 		8B1B2AB6EC6ACDB2CD39A9BB /* NewBrowserWorkspaceShortcutUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04698069140539D8495D6B9B /* NewBrowserWorkspaceShortcutUITests.swift */; };
+		5732A0175732A0175732A017 /* NewChatLauncherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0175732B0175732B017 /* NewChatLauncherView.swift */; };
+		5732A0185732A0185732A018 /* NewChatLauncherWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0185732B0185732B018 /* NewChatLauncherWindowController.swift */; };
 		C0DE77060000000000000003 /* NewWorkspaceMenuModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE77060000000000000004 /* NewWorkspaceMenuModel.swift */; };
 		A5FB1400 /* NewWorkspaceMenuModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5FB1401 /* NewWorkspaceMenuModelTests.swift */; };
 		DDD53D04D52DA86B0D3965C2 /* NotesSidebarContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81118300ACAD103CF4320724 /* NotesSidebarContentView.swift */; };
@@ -3267,6 +3269,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		596100000000000000000002 /* NativeNotificationFallbackCommandTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeNotificationFallbackCommandTests.swift; sourceTree = "<group>"; };
 		A6AC72030000000000000002 /* NativeSpinner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeSpinner.swift; sourceTree = "<group>"; };
 		04698069140539D8495D6B9B /* NewBrowserWorkspaceShortcutUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewBrowserWorkspaceShortcutUITests.swift; sourceTree = "<group>"; };
+		5732B0175732B0175732B017 /* NewChatLauncherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatLauncherView.swift; sourceTree = "<group>"; };
+		5732B0185732B0185732B018 /* NewChatLauncherWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewChatLauncherWindowController.swift; sourceTree = "<group>"; };
 		C0DE77060000000000000004 /* NewWorkspaceMenuModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewWorkspaceMenuModel.swift; sourceTree = "<group>"; };
 		A5FB1401 /* NewWorkspaceMenuModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewWorkspaceMenuModelTests.swift; sourceTree = "<group>"; };
 		81118300ACAD103CF4320724 /* NotesSidebarContentView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NotesSidebarContentView.swift; sourceTree = "<group>"; };
@@ -4625,6 +4629,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 					5732B0095732B0095732B009 /* EnvironmentValues+MinimalModeInvalidationProbe.swift */,
 					5732B0115732B0115732B011 /* SidebarLazyContractProbe.swift */,
 					5732B0145732B0145732B014 /* ChatLazyContractProbe.swift */,
+					5732B0175732B0175732B017 /* NewChatLauncherView.swift */,
+					5732B0185732B0185732B018 /* NewChatLauncherWindowController.swift */,
 					5732B0125732B0125732B012 /* SidebarLazyContractProbeKey.swift */,
 					5732B0155732B0155732B015 /* ChatLazyContractProbeKey.swift */,
 					5732B0135732B0135732B013 /* EnvironmentValues+SidebarLazyContractProbe.swift */,
@@ -7647,6 +7653,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				596100000000000000000003 /* NativeNotificationDeliveryHooks.swift in Sources */,
 				596100000000000000000003 /* NativeNotificationDeliveryHooks.swift in Sources */,
 					A6AC72030000000000000001 /* NativeSpinner.swift in Sources */,
+				5732A0175732A0175732A017 /* NewChatLauncherView.swift in Sources */,
+				5732A0185732A0185732A018 /* NewChatLauncherWindowController.swift in Sources */,
 				C0DE77060000000000000003 /* NewWorkspaceMenuModel.swift in Sources */,
 				DDD53D04D52DA86B0D3965C2 /* NotesSidebarContentView.swift in Sources */,
 				4613574E3CA54C2EE9B39C32 /* NotesSidebarState.swift in Sources */,
