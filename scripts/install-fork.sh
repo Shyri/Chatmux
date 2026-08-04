@@ -237,9 +237,46 @@ fi
 # are valid under ad-hoc), enabling runtime is consistent: the CS
 # entitlements only take effect WITH hardened runtime, and recent
 # macOS (≥ 14) rejects bundles that declare them without it.
+# Signing identity.
+#
+# Ad-hoc (`--sign -`) mints a NEW cdhash on every install, and TCC keys grants
+# for ad-hoc code by cdhash. So every reinstall silently invalidates Full Disk
+# Access, Documents/Desktop/Downloads, camera, microphone and accessibility —
+# while System Settings keeps showing the toggle switched on, because the row
+# survives even though it no longer matches the running binary. That mismatch
+# is why this class of "permission mysteriously stopped working" keeps coming
+# back after every reinstall; stabilising the codesign Identifier (below) was
+# necessary but not sufficient.
+#
+# A real identity keys the grant on identifier + team, which survives rebuilds.
+# Override with CMUX_FORK_SIGN_IDENTITY; set it to "-" to force ad-hoc.
+resolve_fork_sign_identity() {
+  if [[ -n "${CMUX_FORK_SIGN_IDENTITY:-}" ]]; then
+    printf '%s' "$CMUX_FORK_SIGN_IDENTITY"
+    return
+  fi
+  local found
+  found="$(/usr/bin/security find-identity -v -p codesigning 2>/dev/null \
+    | sed -n 's/.*"\(Apple Development: [^"]*\)".*/\1/p' \
+    | head -n 1)"
+  if [[ -n "$found" ]]; then
+    printf '%s' "$found"
+  else
+    printf '%s' '-'
+  fi
+}
+SIGN_IDENTITY="$(resolve_fork_sign_identity)"
+if [[ "$SIGN_IDENTITY" == "-" ]]; then
+  echo "==> Signing ad-hoc (no stable identity found)."
+  echo "    macOS permissions will need re-granting after each reinstall."
+else
+  echo "==> Signing as: ${SIGN_IDENTITY}"
+  echo "    (stable identity — macOS permissions survive reinstalls)"
+fi
+
 CODESIGN_ARGS=(
   --force
-  --sign -
+  --sign "${SIGN_IDENTITY}"
   -i "${BUNDLE_ID}"
   --options runtime
   --timestamp=none
@@ -276,7 +313,7 @@ IFS=$'\n' NESTED_SORTED=($(printf '%s\n' "${NESTED_DEPTH_FIRST[@]}" \
 unset IFS
 for nested in "${NESTED_SORTED[@]}"; do
   echo "==> Re-signing nested bundle: ${nested#$DEST/}"
-  $SUDO /usr/bin/codesign --force --sign - --timestamp=none --generate-entitlement-der \
+  $SUDO /usr/bin/codesign --force --sign "${SIGN_IDENTITY}" --timestamp=none --generate-entitlement-der \
     "$nested"
 done
 
@@ -293,7 +330,7 @@ while IFS= read -r -d '' lib; do
 done < <(/usr/bin/find "$DEST" -type f \( -name "*.dylib" -o -name "*.so" \) -print0)
 for lib in "${LOOSE_LIBS[@]}"; do
   echo "==> Re-signing shared library: ${lib#$DEST/}"
-  $SUDO /usr/bin/codesign --force --sign - --timestamp=none --generate-entitlement-der \
+  $SUDO /usr/bin/codesign --force --sign "${SIGN_IDENTITY}" --timestamp=none --generate-entitlement-der \
     "$lib"
 done
 
