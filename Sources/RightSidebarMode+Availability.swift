@@ -43,7 +43,18 @@ extension RightSidebarMode {
 
     func isAvailable(feedEnabled: Bool, dockEnabled: Bool) -> Bool {
         switch self {
-        case .files, .find, .sessions, .gitlab, .gitStatus:
+        case .files, .find:
+            // Files and Find moved to the workspace sidebar's tool section
+            // (`SidebarToolPanelView`). They are no longer offered on the right
+            // side: one home per tool, so there is no second place to look and
+            // no second copy of the state to keep in sync.
+            //
+            // The cases stay in the enum because the CLI/socket vocabulary
+            // (`from(cliArgument:)`) and the persisted mode still name them;
+            // `RightSidebarMode.resolvedAvailable` maps them onto a mode that
+            // still exists rather than leaving the panel blank.
+            return false
+        case .sessions, .gitlab, .gitStatus:
             return true
         case .feed:
             return feedEnabled

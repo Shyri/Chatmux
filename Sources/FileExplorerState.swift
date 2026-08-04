@@ -57,7 +57,7 @@ final class FileExplorerState: ObservableObject {
         self.showHiddenFiles = storedShowHidden == nil ? true : defaults.bool(forKey: "fileExplorer.showHidden")
         let customSidebarName = defaults.string(forKey: Self.customSidebarNameKey)?.nilIfEmpty
         self.storedCustomSidebarName = customSidebarName
-        let storedMode = RightSidebarMode(rawValue: defaults.string(forKey: Self.modeKey) ?? "") ?? .files
+        let storedMode = RightSidebarMode(rawValue: defaults.string(forKey: Self.modeKey) ?? "") ?? .sessions
         self.storedMode = Self.availableMode(storedMode, defaults: defaults)
         defaults.set(self.storedMode.rawValue, forKey: Self.modeKey)
     }
@@ -115,9 +115,13 @@ final class FileExplorerState: ObservableObject {
         _ mode: RightSidebarMode,
         defaults: UserDefaults
     ) -> RightSidebarMode {
+        // Fall back to a mode that is actually offered. This used to point at
+        // `.files`, which stopped being available when Files and Find moved to
+        // the workspace sidebar — sending an unavailable mode here would leave
+        // the right sidebar showing nothing at all.
         if mode == .customSidebar {
-            return .files
+            return .sessions
         }
-        return mode.isAvailable(defaults: defaults) ? mode : .files
+        return mode.isAvailable(defaults: defaults) ? mode : .sessions
     }
 }

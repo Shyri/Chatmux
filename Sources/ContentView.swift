@@ -841,6 +841,13 @@ struct ContentView: View {
     @State private var sidebarRenderWorkerClient: RenderWorkerClient?
     @StateObject private var fullscreenControlsViewModel = TitlebarControlsViewModel()
     @StateObject private var fileExplorerStore = FileExplorerStore()
+    @AppStorage("cmux.sidebar.toolPanel.height")
+    private var sidebarToolPanelHeightStored: Double = 260
+    @AppStorage("cmux.sidebar.toolPanel.visible")
+    private var sidebarToolPanelVisible: Bool = true
+    @AppStorage("cmux.sidebar.toolPanel.tool")
+    private var sidebarToolRaw: String = SidebarBottomTool.files.rawValue
+    @State private var sidebarToolPanelDragStartHeight: CGFloat?
     @StateObject private var sessionIndexStore = SessionIndexStore()
     @StateObject private var selectedWorkspaceDirectoryObserver = SelectedWorkspaceDirectoryObserver()
     @State private var commandPaletteOverlayRenderModel = CommandPaletteOverlayRenderModel()
@@ -1676,8 +1683,80 @@ struct ContentView: View {
             selection: $sidebarSelectionState.selection,
             selectedTabIds: $selectedTabIds, lastSidebarSelectionIndex: $lastSidebarSelectionIndex, sidebarRenderWorkerClient: $sidebarRenderWorkerClient
         )
-        .frame(width: sidebarWidth)
         .frame(maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    /// Left column: the workspace sidebar with the Files/Find tool section
+    /// stacked underneath it.
+    ///
+    /// The split lives *here*, not inside `VerticalTabsSidebar`. Adding a
+    /// fixed-height sibling under the workspace list inside the sidebar's own
+    /// `NSHostingView` makes AppKit lay that hosting view out reentrantly
+    /// ("NSHostingView is being laid out reentrantly while rendering its
+    /// SwiftUI content ... the current layout pass will be skipped"), which
+    /// `SidebarLazyLayoutScaleTests.testStationaryPointerChurnHasNoViewUpdateFaultsAndConverges`
+    /// catches. Measured, not assumed: the fault reproduced with the file
+    /// explorer replaced by `Color.clear` and with the hover handler removed,
+    /// so it is the split itself the sidebar's hosting view will not take.
+    /// Splitting one level up leaves `VerticalTabsSidebar` byte-for-byte
+    /// unchanged.
+    private var sidebarColumn: some View {
+        VStack(spacing: 0) {
+            sidebarView
+            sidebarToolSection
+        }
+    }
+
+    private static let sidebarToolPanelMinHeight: CGFloat = 140
+    private static let sidebarWorkspaceListMinHeight: CGFloat = 120
+
+    private var sidebarToolBinding: Binding<SidebarBottomTool> {
+        Binding(
+            get: { SidebarBottomTool(rawValue: sidebarToolRaw) ?? .files },
+            set: { sidebarToolRaw = $0.rawValue }
+        )
+    }
+
+    /// Clamp against the window, the same source `maxSidebarWidth` already uses
+    /// for the horizontal resizer — never against a measurement of the sidebar
+    /// itself.
+    private func clampedSidebarToolPanelHeight(_ proposed: CGFloat) -> CGFloat {
+        let windowHeight = observedWindow?.contentLayoutRect.height ?? 800
+        let maximum = max(
+            Self.sidebarToolPanelMinHeight,
+            windowHeight - Self.sidebarWorkspaceListMinHeight
+        )
+        return min(max(proposed, Self.sidebarToolPanelMinHeight), maximum)
+    }
+
+    @ViewBuilder
+    private var sidebarToolSection: some View {
+        if sidebarToolPanelVisible {
+            SidebarToolPanelDivider(
+                onDragChanged: { translation in
+                    let start = sidebarToolPanelDragStartHeight
+                        ?? CGFloat(sidebarToolPanelHeightStored)
+                    if sidebarToolPanelDragStartHeight == nil {
+                        sidebarToolPanelDragStartHeight = start
+                    }
+                    // Dragging up (negative translation) grows the panel.
+                    let next = clampedSidebarToolPanelHeight(start - translation)
+                    withTransaction(Transaction(animation: nil)) {
+                        sidebarToolPanelHeightStored = Double(next)
+                    }
+                },
+                onDragEnded: { sidebarToolPanelDragStartHeight = nil }
+            )
+            SidebarToolPanelView(
+                store: fileExplorerStore,
+                state: fileExplorerState,
+                // Same shared entry point the right sidebar uses, so a file
+                // opened from either place lands in one code path.
+                onOpenFilePreview: { openFilePreviewFromSidebar(filePath: $0) },
+                tool: sidebarToolBinding
+            )
+            .frame(height: clampedSidebarToolPanelHeight(CGFloat(sidebarToolPanelHeightStored)))
+        }
     }
 
     /// Native titlebar inset reported by AppKit. Standard mode follows cmux's visual chrome;
@@ -1868,7 +1947,7 @@ struct ContentView: View {
 
     private func sidebarPanelWithBackdrop(appearance: WindowAppearanceSnapshot) -> some View {
         sidebarPanelContainer(width: sidebarWidth, alignment: .leading, role: .leftSidebar, appearance: appearance) {
-            sidebarView
+            sidebarColumn
         }
     }
 
@@ -2405,7 +2484,16 @@ struct ContentView: View {
     }
 
     private var shouldSyncFileExplorerStore: Bool {
-        FileExplorerRootSyncPolicy.shouldSyncFileExplorerStore(
+        // The file explorer now lives in the left sidebar's tool section, so
+        // its root has to follow the selected workspace whenever that panel is
+        // up — independent of the right sidebar.
+        //
+        // The old policy required the right sidebar to be visible AND in
+        // files/find mode. Since both panels share one `FileExplorerStore`,
+        // that meant the left panel only filled in while the right one happened
+        // to be showing Files, and sat empty otherwise.
+        if sidebarToolPanelVisible { return true }
+        return FileExplorerRootSyncPolicy.shouldSyncFileExplorerStore(
             isRightSidebarVisible: fileExplorerState.isVisible,
             mode: fileExplorerState.mode
         )

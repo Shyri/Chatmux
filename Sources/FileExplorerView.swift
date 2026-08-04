@@ -29,6 +29,8 @@ enum FileExplorerPanelPresentation: Equatable {
 
 enum FileExplorerPanelPlacement: Equatable {
     case rightSidebar
+    /// Bottom section of the workspace sidebar, under the workspace list.
+    case leftSidebar
     case pane
 }
 
@@ -146,7 +148,10 @@ struct FileExplorerPanelView: NSViewRepresentable {
             case .rightSidebar:
                 guard let window else { return }
                 AppDelegate.shared?.noteRightSidebarKeyboardFocusIntent(mode: mode, in: window)
-            case .pane:
+            case .leftSidebar, .pane:
+                // Neither is the right sidebar, so noting a *right* sidebar
+                // focus intent would point AppKit at the wrong panel. Both just
+                // report focus to their host.
                 onFocus?()
             }
         }
