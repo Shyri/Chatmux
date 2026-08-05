@@ -1094,57 +1094,76 @@ struct ClaudeChatPanelView: View {
         return min(max(value, Self.diffPaneMinWidth), maxDiff)
     }
 
+    /// No `GeometryReader` here, deliberately.
+    ///
+    /// It used to wrap this whole subtree — transcript included — to read one
+    /// number, `geo.size.width`, whose only two uses sat inside the
+    /// `if panel.diffPaneOpen` branch. With the pane closed it earned nothing
+    /// and still mediated every measurement of the list below it. Captured in
+    /// the wild: `GeometryReaderLayout.placeSubviews` at 17% of a main thread
+    /// pegged at 100% CPU, inside a steady-state transaction loop that
+    /// re-placed the `LazyVStack`'s rows forever (`LazyLayoutViewCache` /
+    /// `motionVectors`, the family of issue #2586).
+    ///
+    /// The width now comes from `containerRelativeFrame`, which reads the
+    /// container's length without wrapping anything — and, critically, without
+    /// routing geometry through `@State`, the pattern that caused #2586 and
+    /// #6556 in this repo and that `check-sidebar-lazy-layout.py` bans.
     private var chatContent: some View {
-        GeometryReader { geo in
-            VStack(spacing: 0) {
-                HStack(spacing: 0) {
-                    chatColumn
-                    if panel.diffPaneOpen {
-                        diffResizeHandle(totalWidth: geo.size.width)
-                        DiffPaneView(
-                            edits: panel.lastTurnEdits,
-                            isDark: colorScheme == .dark,
-                            onClose: {
-                                panel.diffPaneOpen = false
-                                // User just expressed an explicit preference —
-                                // suppress any future auto-open for the rest
-                                // of this session.
-                                panel.hasAutoOpenedDiffPaneThisSession = true
-                            }
-                        )
-                        .frame(width: clampDiffWidth(CGFloat(diffPaneWidthStored), total: geo.size.width))
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                chatColumn
+                if panel.diffPaneOpen {
+                    diffResizeHandle()
+                    DiffPaneView(
+                        edits: panel.lastTurnEdits,
+                        isDark: colorScheme == .dark,
+                        onClose: {
+                            panel.diffPaneOpen = false
+                            // User just expressed an explicit preference —
+                            // suppress any future auto-open for the rest
+                            // of this session.
+                            panel.hasAutoOpenedDiffPaneThisSession = true
+                        }
+                    )
+                    .containerRelativeFrame(.horizontal) { length, _ in
+                        clampDiffWidth(CGFloat(diffPaneWidthStored), total: length)
                     }
-                }
-                .frame(maxHeight: .infinity)
-                Divider()
-                // Composer spans the full width, beneath both the chat and the
-                // diff pane, instead of being confined to the chat column.
-                composerBar
-            }
-            .overlay {
-                if isDropTargeted {
-                    RoundedRectangle(cornerRadius: 0)
-                        .stroke(ChatPalette.green, style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
-                        .background(ChatPalette.green.opacity(0.06))
-                        .allowsHitTesting(false)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
-            .animation(.easeInOut(duration: 0.18), value: panel.diffPaneOpen)
-            // The chat palette must be injected here, INSIDE the AppKit
-            // hosting container — environments do not cross the
-            // NSHostingView boundary, so an outer `.environment` would never
-            // reach DiffPaneView/DiffBlock and they'd render with the static
-            // default palette.
-            .environment(\.chatPalette, palette)
-            .environment(\.chatFontSize, CGFloat(panel.fontSize))
+            .frame(maxHeight: .infinity)
+            Divider()
+            // Composer spans the full width, beneath both the chat and the
+            // diff pane, instead of being confined to the chat column.
+            composerBar
         }
+        .overlay {
+            if isDropTargeted {
+                RoundedRectangle(cornerRadius: 0)
+                    .stroke(ChatPalette.green, style: StrokeStyle(lineWidth: 3, dash: [6, 4]))
+                    .background(ChatPalette.green.opacity(0.06))
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeInOut(duration: 0.18), value: panel.diffPaneOpen)
+        // The chat palette must be injected here, INSIDE the AppKit
+        // hosting container — environments do not cross the
+        // NSHostingView boundary, so an outer `.environment` would never
+        // reach DiffPaneView/DiffBlock and they'd render with the static
+        // default palette.
+        .environment(\.chatPalette, palette)
+        .environment(\.chatFontSize, CGFloat(panel.fontSize))
     }
 
     /// The divider between chat and diff, widened into a drag handle so the
     /// user can pick the split. Dragging left (toward the chat) grows the diff
     /// pane; the width is clamped and persisted.
-    private func diffResizeHandle(totalWidth: CGFloat) -> some View {
+    /// The drag no longer needs the container width: it accumulates a raw
+    /// value and `containerRelativeFrame` clamps it at paint time, against the
+    /// length it already has. That keeps the upper bound enforced without
+    /// anyone having to measure the parent.
+    private func diffResizeHandle() -> some View {
         Divider()
             .overlay(
                 Rectangle()
@@ -1162,13 +1181,14 @@ struct ClaudeChatPanelView: View {
                         DragGesture()
                             .onChanged { value in
                                 if diffDragStartWidth == nil {
-                                    diffDragStartWidth = clampDiffWidth(
-                                        CGFloat(diffPaneWidthStored), total: totalWidth
-                                    )
+                                    diffDragStartWidth = CGFloat(diffPaneWidthStored)
                                 }
                                 let base = diffDragStartWidth ?? CGFloat(diffPaneWidthStored)
                                 let proposed = base - value.translation.width
-                                diffPaneWidthStored = Double(clampDiffWidth(proposed, total: totalWidth))
+                                // Lower bound only. The upper bound depends on
+                                // the container width and is applied where that
+                                // is known, in `containerRelativeFrame`.
+                                diffPaneWidthStored = Double(max(proposed, Self.diffPaneMinWidth))
                             }
                             .onEnded { _ in diffDragStartWidth = nil }
                     )
