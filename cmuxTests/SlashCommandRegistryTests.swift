@@ -94,14 +94,21 @@ import Testing
 
     /// A file on disk wins: it carries a real description read from the
     /// frontmatter, and the CLI reports names only.
+    ///
+    /// The project command is given a name no real installation would have.
+    /// `availableCommands` also scans the developer's own `~/.claude/commands`,
+    /// which no test can isolate — using a plausible name like `start-release`
+    /// made this fail on any machine that happened to have one, counting the
+    /// user-level file as a second entry.
     @Test func cliReportedNamesNeverDuplicateScannedOrBuiltinCommands() throws {
+        let name = "cmux-test-only-\(UUID().uuidString.prefix(8))"
         try withTemporaryCwd { cwd in
             let commandsDir = cwd
                 .appendingPathComponent(".claude", isDirectory: true)
                 .appendingPathComponent("commands", isDirectory: true)
             try FileManager.default.createDirectory(at: commandsDir, withIntermediateDirectories: true)
             try "---\ndescription: Ship it\n---\nbody".write(
-                to: commandsDir.appendingPathComponent("start-release.md"),
+                to: commandsDir.appendingPathComponent("\(name).md"),
                 atomically: true,
                 encoding: .utf8
             )
@@ -109,10 +116,10 @@ import Testing
             let commands = SlashCommandRegistry.availableCommands(
                 cwd: cwd.path,
                 // The CLI reports both, plus a built-in the panel owns.
-                reportedByCLI: ["start-release", "clear", "compact"]
+                reportedByCLI: [name, "clear", "compact"]
             )
-            #expect(commands.filter { $0.name == "start-release" }.count == 1)
-            #expect(commands.first { $0.name == "start-release" }?.description == "Ship it")
+            #expect(commands.filter { $0.name == name }.count == 1)
+            #expect(commands.first { $0.name == name }?.description == "Ship it")
             #expect(commands.filter { $0.name == "clear" }.count == 1)
             // `clear` stays the in-app action, not a prompt forwarded to claude.
             #expect(commands.first { $0.name == "clear" }?.action
@@ -212,7 +219,19 @@ import Testing
             #expect(found?.name == "start-task")
             // Project scope must win: the developer running these tests may
             // well have a user-level start-task.md too.
-            #expect(found?.source == .projectCustom(dir.appendingPathComponent("start-task.md")))
+            //
+            // Compared on resolved paths, not on the URLs themselves: the
+            // temporary directory is under /var, which is a symlink to
+            // /private/var, and the registry returns whichever form the scan
+            // produced. Comparing URLs directly failed for that reason alone.
+            guard case .projectCustom(let url) = found?.source else {
+                Issue.record("expected a project-scope command, got \(String(describing: found?.source))")
+                return
+            }
+            #expect(
+                url.resolvingSymlinksInPath().path
+                    == dir.appendingPathComponent("start-task.md").resolvingSymlinksInPath().path
+            )
         }
     }
 
