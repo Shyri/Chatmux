@@ -83,6 +83,63 @@ enum AutoTaskSetupPolicy {
         return false
     }
 
+    // MARK: - Building the command for a level
+
+    /// The build step to add to a test command, per stack. Empty when there is
+    /// nothing meaningful to add.
+    static func buildSuffix(projectType: String) -> String {
+        switch projectType {
+        case "android-native": return "assembleDebug"
+        case "flutter": return "flutter build apk --debug"
+        case "swift-package": return "swift build"
+        case "rust": return "cargo build"
+        case "go": return "go build ./..."
+        default: return ""
+        }
+    }
+
+    /// Adjust a proposed command for the chosen level.
+    ///
+    /// Only ever *adds* a build step, and only where the step is a real,
+    /// standard task for that stack. Snapshot tests are deliberately not
+    /// auto-completed: the task name depends on the framework and the module
+    /// layout, and inventing one that silently does nothing is exactly the
+    /// failure the toolkit refuses to risk. The user is shown the detected
+    /// framework and edits the command themselves.
+    static func command(
+        base: String,
+        projectType: String,
+        level: VerificationLevel
+    ) -> String {
+        let trimmed = base.trimmingCharacters(in: .whitespaces)
+        switch level {
+        case .unitTests, .testsBuildAndSnapshots:
+            return trimmed
+        case .testsAndBuild:
+            let suffix = buildSuffix(projectType: projectType)
+            guard !suffix.isEmpty, !trimmed.isEmpty else { return trimmed }
+            guard !alreadyBuilds(trimmed, suffix: suffix) else { return trimmed }
+            // Gradle takes extra tasks as arguments; everything else chains.
+            if projectType == "android-native", trimmed.contains("gradlew") {
+                return trimmed + " " + suffix
+            }
+            return trimmed + " && " + suffix
+        }
+    }
+
+    private static func alreadyBuilds(_ command: String, suffix: String) -> Bool {
+        let lowered = command.lowercased()
+        if lowered.contains(suffix.lowercased()) { return true }
+        return mentionsABuild(lowered)
+    }
+
+    private static func mentionsABuild(_ lowered: String) -> Bool {
+        for marker in ["assemble", "xcodebuild build", "bundle", "archive", " build"] where lowered.contains(marker) {
+            return true
+        }
+        return false
+    }
+
     // MARK: - Timeout
 
     /// Minimum timeout regardless of how fast the measured run was — a cold

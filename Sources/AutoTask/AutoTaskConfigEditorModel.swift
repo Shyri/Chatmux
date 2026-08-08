@@ -9,7 +9,7 @@ import Foundation
 @MainActor
 final class AutoTaskConfigEditorModel: ObservableObject {
     enum LoadState: Equatable {
-        case missing(stack: AutoTaskConfigTemplate.Stack)
+        case missing
         case loaded
         case unreadable(String)
     }
@@ -28,10 +28,16 @@ final class AutoTaskConfigEditorModel: ObservableObject {
 
     private var original: AutoTaskConfigFile
     private let fileManager: FileManager
+    private let runner: OctoDevScriptRunner
 
-    init(repositoryPath: String, fileManager: FileManager = .default) {
+    init(
+        repositoryPath: String,
+        fileManager: FileManager = .default,
+        runner: OctoDevScriptRunner = OctoDevScriptRunner()
+    ) {
         self.repositoryPath = repositoryPath
         self.fileManager = fileManager
+        self.runner = runner
         original = AutoTaskConfigFile(text: "")
         reload()
     }
@@ -40,6 +46,7 @@ final class AutoTaskConfigEditorModel: ObservableObject {
 
     func reload() {
         saveError = nil
+        projectType = detectProjectType()
         hasMRCreateFile = fileManager.fileExists(
             atPath: (AutoTaskConfigPath.directory(inRepository: repositoryPath) as NSString)
                 .appendingPathComponent(AutoTaskConfigPath.mrCreateFileName)
@@ -47,7 +54,7 @@ final class AutoTaskConfigEditorModel: ObservableObject {
 
         let path = AutoTaskConfigPath.path(inRepository: repositoryPath)
         guard fileManager.fileExists(atPath: path) else {
-            loadState = .missing(stack: AutoTaskConfigTemplate.detectStack(inRepository: repositoryPath))
+            loadState = .missing
             original = AutoTaskConfigFile(text: "")
             applyFields(from: original)
             return
@@ -60,6 +67,17 @@ final class AutoTaskConfigEditorModel: ObservableObject {
         original = AutoTaskConfigFile(text: text)
         applyFields(from: original)
         loadState = .loaded
+    }
+
+    /// Ask the toolkit, and accept not knowing. An empty answer simply means
+    /// the stack-specific warnings do not fire — better than firing them off a
+    /// second, cmux-side classification that could disagree with the one
+    /// `/auto-task` actually uses.
+    private func detectProjectType() -> String {
+        guard let out = try? runner.run(
+            .mrReview, arguments: ["detect-project"], repositoryPath: repositoryPath
+        ) else { return "" }
+        return out["PROJECT_TYPE"] ?? ""
     }
 
     private func applyFields(from config: AutoTaskConfigFile) {
@@ -81,9 +99,10 @@ final class AutoTaskConfigEditorModel: ObservableObject {
         return config
     }
 
-    var stack: AutoTaskConfigTemplate.Stack {
-        AutoTaskConfigTemplate.detectStack(inRepository: repositoryPath)
-    }
+    /// Reported by `mr-review.sh detect-project`, resolved once per load.
+    /// Empty when the toolkit is not installed — the warnings that depend on it
+    /// simply do not fire, rather than firing on a guess.
+    @Published private(set) var projectType: String = ""
 
     var errors: [AutoTaskConfigDiagnostics.Finding] {
         AutoTaskConfigDiagnostics.errors(in: edited)
@@ -92,7 +111,7 @@ final class AutoTaskConfigEditorModel: ObservableObject {
     var warnings: [AutoTaskConfigDiagnostics.Finding] {
         AutoTaskConfigDiagnostics.warnings(
             in: edited,
-            stack: stack,
+            projectType: projectType,
             hasMRCreateFile: hasMRCreateFile
         )
     }
@@ -145,27 +164,6 @@ final class AutoTaskConfigEditorModel: ObservableObject {
     }
 
     // MARK: - Actions
-
-    /// Create the file from the detected stack's template.
-    func createFromTemplate() {
-        let stack = AutoTaskConfigTemplate.detectStack(inRepository: repositoryPath)
-        let directory = AutoTaskConfigPath.directory(inRepository: repositoryPath)
-        do {
-            try fileManager.createDirectory(
-                atPath: directory,
-                withIntermediateDirectories: true
-            )
-            let text = AutoTaskConfigTemplate.starterFile(for: stack)
-            try text.write(
-                toFile: AutoTaskConfigPath.path(inRepository: repositoryPath),
-                atomically: true,
-                encoding: .utf8
-            )
-            reload()
-        } catch {
-            saveError = error.localizedDescription
-        }
-    }
 
     func save() {
         guard errors.isEmpty else { return }

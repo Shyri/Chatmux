@@ -110,9 +110,12 @@ enum AutoTaskConfigDiagnostics {
 
     // MARK: - Warnings
 
+    /// `projectType` is the value `mr-review.sh detect-project` reports, not a
+    /// cmux-side classification: the toolkit's detection is the authority, and
+    /// a parallel one here would disagree with it eventually.
     static func warnings(
         in config: AutoTaskConfigFile,
-        stack: AutoTaskConfigTemplate.Stack,
+        projectType: String,
         hasMRCreateFile: Bool
     ) -> [Finding] {
         var out: [Finding] = []
@@ -172,7 +175,8 @@ enum AutoTaskConfigDiagnostics {
             ))
         }
 
-        if stack.isMobile, !verify.isEmpty, !mentionsABinaryBuild(verify) {
+        if AutoTaskSetupPolicy.isMobile(projectType: projectType), !verify.isEmpty,
+           !mentionsABinaryBuild(verify) {
             out.append(Finding(
                 id: "verify.testsOnly",
                 severity: .warning,

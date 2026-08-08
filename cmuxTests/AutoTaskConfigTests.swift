@@ -249,11 +249,11 @@ import Testing
 
     private func warnings(
         _ text: String,
-        stack: AutoTaskConfigTemplate.Stack = .androidNative,
+        projectType: String = "android-native",
         hasMRCreate: Bool = true
     ) -> [String] {
         AutoTaskConfigDiagnostics
-            .warnings(in: config(text), stack: stack, hasMRCreateFile: hasMRCreate)
+            .warnings(in: config(text), projectType: projectType, hasMRCreateFile: hasMRCreate)
             .map(\.id)
     }
 
@@ -284,13 +284,13 @@ import Testing
     }
 
     @Test func testsOnlyVerifyWarnsOnMobileOnly() {
-        let mobile = warnings("VERIFY_CMD=\"./gradlew test\"\n", stack: .androidNative)
+        let mobile = warnings("VERIFY_CMD=\"./gradlew test\"\n", projectType: "android-native")
         #expect(mobile.contains("verify.testsOnly"))
 
-        let assembling = warnings("VERIFY_CMD=\"./gradlew test assembleDebug\"\n", stack: .androidNative)
+        let assembling = warnings("VERIFY_CMD=\"./gradlew test assembleDebug\"\n", projectType: "android-native")
         #expect(assembling.contains("verify.testsOnly") == false)
 
-        let backend = warnings("VERIFY_CMD=\"cargo test\"\n", stack: .rust)
+        let backend = warnings("VERIFY_CMD=\"cargo test\"\n", projectType: "rust")
         #expect(backend.contains("verify.testsOnly") == false)
     }
 
@@ -307,85 +307,5 @@ import Testing
         let text = "VERIFY_CMD=\"./gradlew test\"\nFORBIDDEN_PATHS=\"*/build.gradle\"\nMAX_FILES=25\nVERIFY_TIMEOUT=1800\n"
         #expect(AutoTaskConfigDiagnostics.errors(in: config(text)).isEmpty)
         #expect(warnings(text, hasMRCreate: false).count >= 3)
-    }
-}
-
-/// Chatmux-only: stack detection and the starter templates.
-///
-/// The values are octo-dev's, copied verbatim — a FORBIDDEN_PATHS that diverges
-/// from what the toolkit expects leaves real files unprotected.
-@Suite struct AutoTaskConfigTemplateTests {
-    private func withRepository(_ files: [String], _ body: (String) throws -> Void) throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("AutoTaskTemplateTests-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-        for file in files {
-            let url = root.appendingPathComponent(file)
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(), withIntermediateDirectories: true
-            )
-            try "".write(to: url, atomically: true, encoding: .utf8)
-        }
-        try body(root.path)
-    }
-
-    @Test func detectsCommonStacks() throws {
-        try withRepository(["gradlew"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .androidNative) }
-        try withRepository(["Cargo.toml"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .rust) }
-        try withRepository(["go.mod"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .go) }
-        try withRepository(["package.json"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .nodeJS) }
-        try withRepository(["pyproject.toml"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .python) }
-        try withRepository(["README.md"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .unknown) }
-    }
-
-    /// A Flutter repository contains an Android project too, so order matters.
-    @Test func flutterWinsOverTheAndroidProjectInsideIt() throws {
-        try withRepository(["pubspec.yaml", "android/gradlew"]) {
-            #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .flutter)
-        }
-    }
-
-    @Test func everyTemplateProtectsCIAndItsOwnConfig() {
-        for stack in AutoTaskConfigTemplate.Stack.allCases {
-            let patterns = ForbiddenPathMatcher.patterns(from: AutoTaskConfigTemplate.forbiddenPaths(for: stack))
-            #expect(patterns.contains(".gitlab-ci.yml"), "\(stack.rawValue) leaves GitLab CI unprotected")
-            #expect(patterns.contains(".github/"), "\(stack.rawValue) leaves GitHub Actions unprotected")
-            #expect(patterns.contains(".octo-dev/"), "\(stack.rawValue) lets a run rewrite its own rules")
-        }
-    }
-
-    /// The Android template ships both `*/build.gradle` and `build.gradle`
-    /// precisely because the first does not cover a root-level file.
-    @Test func androidTemplateCoversBothGradleForms() {
-        let patterns = ForbiddenPathMatcher.patterns(
-            from: AutoTaskConfigTemplate.forbiddenPaths(for: .androidNative)
-        )
-        #expect(ForbiddenPathMatcher.isBlocked(path: "app/build.gradle", patterns: patterns))
-        #expect(ForbiddenPathMatcher.isBlocked(path: "build.gradle", patterns: patterns))
-        #expect(ForbiddenPathMatcher.isBlocked(path: "release.keystore", patterns: patterns))
-    }
-
-    /// A generated file has to parse back into the same values.
-    @Test func starterFileRoundTrips() {
-        for stack in AutoTaskConfigTemplate.Stack.allCases {
-            let text = AutoTaskConfigTemplate.starterFile(for: stack)
-            let parsed = AutoTaskConfigFile(text: text)
-            #expect(parsed.serialized() == text, "\(stack.rawValue) does not round-trip")
-            #expect(parsed.intValue(for: .maxFiles) == 25)
-            #expect(parsed.intValue(for: .verifyTimeout) == 1800)
-            #expect(parsed.value(for: .verifyCommand) == AutoTaskConfigTemplate.verifyCommand(for: stack))
-        }
-    }
-
-    /// Generated files must be valid by construction — except the unknown
-    /// stack, which deliberately leaves VERIFY_CMD empty for a human.
-    @Test func generatedFilesValidateCleanly() {
-        for stack in AutoTaskConfigTemplate.Stack.allCases where stack != .unknown {
-            let parsed = AutoTaskConfigFile(text: AutoTaskConfigTemplate.starterFile(for: stack))
-            #expect(AutoTaskConfigDiagnostics.errors(in: parsed).isEmpty, "\(stack.rawValue) generates an invalid file")
-        }
-        let unknown = AutoTaskConfigFile(text: AutoTaskConfigTemplate.starterFile(for: .unknown))
-        #expect(AutoTaskConfigDiagnostics.errors(in: unknown).contains { $0.id == "verify.empty" })
     }
 }

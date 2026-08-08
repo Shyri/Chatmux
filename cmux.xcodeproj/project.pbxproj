@@ -205,7 +205,6 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		A5009B0100000000000000F6 /* AutoTaskConfigEditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000F5 /* AutoTaskConfigEditorModel.swift */; };
 		A5009B0100000000000000E6 /* AutoTaskConfigFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */; };
 		A5009B0100000000000000E0 /* AutoTaskConfigPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000DF /* AutoTaskConfigPath.swift */; };
-		A5009B0100000000000000F2 /* AutoTaskConfigTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000F1 /* AutoTaskConfigTemplate.swift */; };
 		A5009B0100000000000000E8 /* AutoTaskConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */; };
 		A5009B0100000000000000F8 /* AutoTaskConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000F7 /* AutoTaskConfigView.swift */; };
 		A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D7 /* AutoTaskLauncher.swift */; };
@@ -213,7 +212,9 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		A5009B0100000000000000DE /* AutoTaskPanelActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000DD /* AutoTaskPanelActions.swift */; };
 		A5009B0100000000000000DA /* AutoTaskSchedulePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D9 /* AutoTaskSchedulePicker.swift */; };
 		A5009B0100000000000000D6 /* AutoTaskScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D5 /* AutoTaskScheduler.swift */; };
+		A5009B01000000000000010A /* AutoTaskSetupModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B010000000000000109 /* AutoTaskSetupModel.swift */; };
 		A5009B010000000000000106 /* AutoTaskSetupPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B010000000000000105 /* AutoTaskSetupPolicy.swift */; };
+		A5009B01000000000000010C /* AutoTaskSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B01000000000000010B /* AutoTaskSetupView.swift */; };
 		A5009B0100000000000000D4 /* AutoTaskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D3 /* AutoTaskStore.swift */; };
 		A5009B0100000000000000E2 /* AutoTaskStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */; };
 		CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */; };
@@ -2401,7 +2402,6 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		A5009B0100000000000000F5 /* AutoTaskConfigEditorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigEditorModel.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigFile.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000DF /* AutoTaskConfigPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigPath.swift; sourceTree = "<group>"; };
-		A5009B0100000000000000F1 /* AutoTaskConfigTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigTemplate.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTaskConfigTests.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000F7 /* AutoTaskConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigView.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D7 /* AutoTaskLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskLauncher.swift; sourceTree = "<group>"; };
@@ -2409,7 +2409,9 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		A5009B0100000000000000DD /* AutoTaskPanelActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskPanelActions.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D9 /* AutoTaskSchedulePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskSchedulePicker.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D5 /* AutoTaskScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskScheduler.swift; sourceTree = "<group>"; };
+		A5009B010000000000000109 /* AutoTaskSetupModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskSetupModel.swift; sourceTree = "<group>"; };
 		A5009B010000000000000105 /* AutoTaskSetupPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskSetupPolicy.swift; sourceTree = "<group>"; };
+		A5009B01000000000000010B /* AutoTaskSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskSetupView.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D3 /* AutoTaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskStore.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTaskStoreTests.swift; sourceTree = "<group>"; };
 		CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShellReconciliationTests.swift; sourceTree = "<group>"; };
@@ -5772,13 +5774,14 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				FE0030A3 /* RightSidebarToolPanel.swift */,
 				A5009B0100000000000000D1 /* ScheduledAutoTask.swift */,
 				A5009B0100000000000000D3 /* AutoTaskStore.swift */,
+				A5009B01000000000000010B /* AutoTaskSetupView.swift */,
+				A5009B010000000000000109 /* AutoTaskSetupModel.swift */,
 				A5009B010000000000000105 /* AutoTaskSetupPolicy.swift */,
 				A5009B010000000000000103 /* OctoDevScriptRunner.swift */,
 				A5009B010000000000000101 /* OctoDevScriptOutput.swift */,
 				A5009B0100000000000000F7 /* AutoTaskConfigView.swift */,
 				A5009B0100000000000000F5 /* AutoTaskConfigEditorModel.swift */,
 				A5009B0100000000000000F3 /* AutoTaskConfigDiagnostics.swift */,
-				A5009B0100000000000000F1 /* AutoTaskConfigTemplate.swift */,
 				A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */,
 				A5009B0100000000000000E3 /* ForbiddenPathMatcher.swift */,
 				A5009B0100000000000000DF /* AutoTaskConfigPath.swift */,
@@ -7166,14 +7169,15 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5009B0100000000000000F6 /* AutoTaskConfigEditorModel.swift in Sources */,
 				A5009B0100000000000000E6 /* AutoTaskConfigFile.swift in Sources */,
 				A5009B0100000000000000E0 /* AutoTaskConfigPath.swift in Sources */,
-				A5009B0100000000000000F2 /* AutoTaskConfigTemplate.swift in Sources */,
 				A5009B0100000000000000F8 /* AutoTaskConfigView.swift in Sources */,
 				A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */,
 				A5009B0100000000000000DC /* AutoTaskListView.swift in Sources */,
 				A5009B0100000000000000DE /* AutoTaskPanelActions.swift in Sources */,
 				A5009B0100000000000000DA /* AutoTaskSchedulePicker.swift in Sources */,
 				A5009B0100000000000000D6 /* AutoTaskScheduler.swift in Sources */,
+				A5009B01000000000000010A /* AutoTaskSetupModel.swift in Sources */,
 				A5009B010000000000000106 /* AutoTaskSetupPolicy.swift in Sources */,
+				A5009B01000000000000010C /* AutoTaskSetupView.swift in Sources */,
 				A5009B0100000000000000D4 /* AutoTaskStore.swift in Sources */,
 				A5009B0100000000000000B6 /* BackgroundShellsPopover.swift in Sources */,
 				C0DE35860000000000000001 /* BackgroundWorkspacePrimeCoordinator.swift in Sources */,

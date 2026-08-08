@@ -7,18 +7,34 @@ import SwiftUI
 /// affects every autonomous run by every member of the team.
 struct AutoTaskConfigView: View {
     @StateObject private var model: AutoTaskConfigEditorModel
+    @StateObject private var setup: AutoTaskSetupModel
     @State private var showingDiff = false
+    /// Step 0 of the assistant's flow: with a config already present, do not
+    /// launch the wizard — show the configuration and offer to edit it.
+    @State private var showingSetup = false
 
     init(repositoryPath: String) {
         _model = StateObject(wrappedValue: AutoTaskConfigEditorModel(repositoryPath: repositoryPath))
+        _setup = StateObject(wrappedValue: AutoTaskSetupModel(repositoryPath: repositoryPath))
     }
 
     var body: some View {
+        if showingSetup {
+            AutoTaskSetupView(model: setup) {
+                showingSetup = false
+                model.reload()
+            }
+        } else {
+            editor
+        }
+    }
+
+    private var editor: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 switch model.loadState {
-                case .missing(let stack):
-                    missingState(stack: stack)
+                case .missing:
+                    missingState()
                 case .unreadable(let path):
                     unreadableState(path: path)
                 case .loaded:
@@ -40,7 +56,10 @@ struct AutoTaskConfigView: View {
 
     // MARK: - No file yet
 
-    private func missingState(stack: AutoTaskConfigTemplate.Stack) -> some View {
+    /// No config yet, so this repository has never been set up. The assistant
+    /// is the whole answer — it is where all the interaction `/auto-task`
+    /// cannot have takes place.
+    private func missingState() -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(String(
                 localized: "autoTask.config.missing.title",
@@ -56,35 +75,24 @@ struct AutoTaskConfigView: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 6) {
-                Text(String(
-                    localized: "autoTask.config.missing.detected",
-                    defaultValue: "Detected stack:"
-                ))
-                Text(stack.displayName).fontWeight(.semibold)
-            }
+            Text(String(
+                localized: "autoTask.config.missing.setupIntro",
+                defaultValue: "The setup runs once per repository. After it, every autonomous run depends on what is decided there — /auto-task never asks anything."
+            ))
             .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
 
             Button {
-                model.createFromTemplate()
+                showingSetup = true
             } label: {
                 Text(String(
-                    localized: "autoTask.config.missing.create",
-                    defaultValue: "Create from template"
+                    localized: "autoTask.config.missing.runSetup",
+                    defaultValue: "Set up this repository"
                 ))
             }
             .keyboardShortcut(.defaultAction)
-            .disabled(stack == .unknown && false)
 
-            if stack == .unknown {
-                Text(String(
-                    localized: "autoTask.config.missing.unknownStack",
-                    defaultValue: "The stack was not recognized, so VERIFY_CMD will be left empty for you to fill in."
-                ))
-                .font(.system(size: 11))
-                .foregroundStyle(.orange)
-                .fixedSize(horizontal: false, vertical: true)
-            }
             if let error = model.saveError {
                 Text(error).font(.system(size: 11)).foregroundStyle(.red)
             }
