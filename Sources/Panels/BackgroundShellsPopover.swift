@@ -129,6 +129,15 @@ struct BackgroundShellsPopover: View {
                         .font(.system(size: 10))
                         .foregroundColor(.secondary)
                 }
+                // Why a stop did not take. Without this the row silently rolled
+                // back to Running and the click looked like it did nothing.
+                if let reason = shell.stopFailureReason, !reason.isEmpty {
+                    Text(reason)
+                        .font(.system(size: 10))
+                        .foregroundColor(ChatPalette.red)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer(minLength: 8)
             actionButtons(for: shell)
@@ -175,9 +184,14 @@ struct BackgroundShellsPopover: View {
 
     @ViewBuilder
     private func killOrDismissButton(for shell: ClaudeChatPanel.BackgroundShell) -> some View {
-        if isLive(shell.status), let shellId = shell.shellId, !shellId.isEmpty {
+        // Addressable by *either* id: a `shell_id` from a Bash tool_result, or
+        // a `task_id` from the harness' events — nearly every background
+        // command arrives as the latter now. Gating on `shellId` alone hid the
+        // button for exactly the shells people want to stop.
+        let identifier = shell.taskId ?? shell.shellId
+        if isLive(shell.status), let identifier, !identifier.isEmpty {
             Button {
-                panel.killBackgroundShell(shellId: shellId)
+                panel.killBackgroundShell(rowId: shell.id)
             } label: {
                 Label(String(
                     localized: "claudeChat.bashes.kill",
@@ -186,9 +200,10 @@ struct BackgroundShellsPopover: View {
                     .font(.system(size: 11))
             }
             .buttonStyle(.borderless)
+            .disabled(shell.status == .stopping)
             .help(String(
                 localized: "claudeChat.bashes.kill.tooltip",
-                defaultValue: "Ask claude to run KillShell on this shell"
+                defaultValue: "Ask claude to stop this shell"
             ))
         } else {
             Button {
@@ -248,6 +263,11 @@ struct BackgroundShellsPopover: View {
                 localized: "claudeChat.bashes.status.completed",
                 defaultValue: "Exited"
             )
+        case .stopping:
+            return String(
+                localized: "claudeChat.bashes.status.stopping",
+                defaultValue: "Stopping…"
+            )
         case .killed:
             return String(
                 localized: "claudeChat.bashes.status.killed",
@@ -266,6 +286,7 @@ struct BackgroundShellsPopover: View {
         case .starting: return ChatPalette.yellow
         case .running: return ChatPalette.cyan
         case .completed: return ChatPalette.green
+        case .stopping: return ChatPalette.yellow
         case .killed: return ChatPalette.red
         case .unknown: return .secondary
         }
@@ -277,7 +298,7 @@ struct BackgroundShellsPopover: View {
 
     private func isLive(_ status: ClaudeChatPanel.BackgroundShell.Status) -> Bool {
         switch status {
-        case .starting, .running, .unknown: return true
+        case .starting, .running, .unknown, .stopping: return true
         case .completed, .killed: return false
         }
     }

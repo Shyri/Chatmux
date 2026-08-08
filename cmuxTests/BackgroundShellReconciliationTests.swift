@@ -265,4 +265,134 @@ import Testing
             return
         }
     }
+
+    // MARK: - stopping a shell
+    //
+    // Reported from a real session: the user pressed Kill on a shell left over
+    // from a previous session, and the agent answered
+    // "No task found with ID: bcoundaz9" — while the row had already flipped to
+    // Killed. Two bugs behind it, both covered here:
+    //
+    //   1. cmux asked for `KillShell` with `shell_id=<task id>`. The CLI no
+    //      longer exposes `KillShell` at all (its tool list has `TaskStop`),
+    //      and a task id is not a shell id, so the request could not name its
+    //      target.
+    //   2. The row flipped to `.killed` optimistically with nothing to roll it
+    //      back, so a failed stop still read as a dead shell.
+
+    private func liveTaskShell(taskId: String, toolUseId: String) -> ClaudeChatPanel {
+        let panel = ClaudeChatPanel(workspaceId: UUID(), workingDirectory: "/tmp")
+        panel.applyBackgroundTaskEvent(
+            phase: .started, taskId: taskId, toolUseId: toolUseId,
+            taskType: "local_bash", status: "running", exitCode: nil,
+            description: "Long running thing"
+        )
+        return panel
+    }
+
+    /// A row born from a harness event is addressed by `task_id`, never by a
+    /// `shell_id` it never had.
+    @Test func taskEventRowCarriesATaskIdNotAShellId() {
+        let panel = liveTaskShell(taskId: "bcoundaz9", toolUseId: "toolu_x")
+        #expect(panel.backgroundShells.first?.taskId == "bcoundaz9")
+        #expect(panel.backgroundShells.first?.shellId == nil)
+    }
+
+    /// Requesting a stop must not claim the shell is dead.
+    @Test func requestingAStopMarksItPendingNotKilled() {
+        let panel = liveTaskShell(taskId: "bcoundaz9", toolUseId: "toolu_x")
+        panel.killBackgroundShell(rowId: panel.backgroundShells[0].id)
+        #expect(panel.backgroundShells.first?.status == .stopping)
+    }
+
+    /// The exact failure the user hit. The row must go back to running and say
+    /// why, instead of sitting there claiming to be killed.
+    @Test func aFailedStopRollsBackAndExplainsItself() {
+        let panel = liveTaskShell(taskId: "bcoundaz9", toolUseId: "toolu_x")
+        panel.killBackgroundShell(rowId: panel.backgroundShells[0].id)
+
+        panel.noteStopToolUse(.init(
+            id: "toolu_stop", name: "TaskStop",
+            inputJSON: "{\"task_id\":\"bcoundaz9\"}"
+        ))
+        panel.noteBackgroundStopResult(.init(
+            toolUseId: "toolu_stop",
+            content: "No task found with ID: bcoundaz9",
+            isError: false
+        ))
+
+        #expect(panel.backgroundShells.first?.status == .running,
+                "a stop that found nothing must not leave the row looking dead")
+        #expect(panel.backgroundShells.first?.stopFailureReason?.contains("No task found") == true)
+    }
+
+    /// An error-flagged result rolls back too.
+    @Test func anErroredStopAlsoRollsBack() {
+        let panel = liveTaskShell(taskId: "btask", toolUseId: "toolu_y")
+        panel.killBackgroundShell(rowId: panel.backgroundShells[0].id)
+        panel.noteStopToolUse(.init(
+            id: "toolu_stop", name: "TaskStop", inputJSON: "{\"task_id\":\"btask\"}"
+        ))
+        panel.noteBackgroundStopResult(.init(
+            toolUseId: "toolu_stop", content: "permission denied", isError: true
+        ))
+        #expect(panel.backgroundShells.first?.status == .running)
+    }
+
+    /// And a successful one is the only thing that produces `.killed`.
+    @Test func aSuccessfulStopIsWhatKillsTheRow() {
+        let panel = liveTaskShell(taskId: "btask", toolUseId: "toolu_z")
+        panel.killBackgroundShell(rowId: panel.backgroundShells[0].id)
+        panel.noteStopToolUse(.init(
+            id: "toolu_stop", name: "TaskStop", inputJSON: "{\"task_id\":\"btask\"}"
+        ))
+        panel.noteBackgroundStopResult(.init(
+            toolUseId: "toolu_stop", content: "Task btask stopped.", isError: false
+        ))
+        #expect(panel.backgroundShells.first?.status == .killed)
+        #expect(panel.backgroundShells.first?.stopFailureReason == nil)
+    }
+
+    /// A `KillShell` on a genuine shell id still works — old-style shells did
+    /// not stop existing.
+    @Test func killShellStillWorksForARealShellId() {
+        let panel = ClaudeChatPanel(workspaceId: UUID(), workingDirectory: "/tmp")
+        panel.applyResumedTranscript(sessionId: "s", messages: [
+            ChatMessage(role: .assistant, blocks: [bashToolUse(id: "toolu_old", command: "sleep 500")]),
+            ChatMessage(role: .user, blocks: [.toolResult(.init(
+                toolUseId: "toolu_old",
+                content: "Command running in background with ID: sh_real",
+                isError: false
+            ))])
+        ])
+        #expect(panel.backgroundShells.first?.shellId == "sh_real")
+        panel.killBackgroundShell(rowId: panel.backgroundShells[0].id)
+        #expect(panel.backgroundShells.first?.status == .stopping)
+
+        panel.noteStopToolUse(.init(
+            id: "toolu_stop", name: "KillShell", inputJSON: "{\"shell_id\":\"sh_real\"}"
+        ))
+        panel.noteBackgroundStopResult(.init(
+            toolUseId: "toolu_stop", content: "killed", isError: false
+        ))
+        #expect(panel.backgroundShells.first?.status == .killed)
+    }
+
+    /// Pressing Kill twice must not queue a second request.
+    @Test func stoppingIsNotRequestedTwice() {
+        let panel = liveTaskShell(taskId: "btask", toolUseId: "toolu_w")
+        let rowId = panel.backgroundShells[0].id
+        panel.killBackgroundShell(rowId: rowId)
+        let afterFirst = panel.messages.count
+        panel.killBackgroundShell(rowId: rowId)
+        #expect(panel.messages.count == afterFirst, "a second Kill must not send another request")
+    }
+
+    /// Failure detection reads the content, because a stop can report success
+    /// at the tool level and still have done nothing.
+    @Test func failureIsDetectedFromTheContentToo() {
+        #expect(ClaudeChatPanel.stopResultLooksLikeAFailure("No task found with ID: bcoundaz9"))
+        #expect(ClaudeChatPanel.stopResultLooksLikeAFailure("no such shell"))
+        #expect(ClaudeChatPanel.stopResultLooksLikeAFailure("Task btask stopped.") == false)
+    }
 }

@@ -1001,7 +1001,7 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             var live = 0
             for shell in backgroundShells {
                 switch shell.status {
-                case .starting, .running, .unknown: live &+= 1
+                case .starting, .running, .unknown, .stopping: live &+= 1
                 case .completed, .killed: break
                 }
             }
@@ -1009,15 +1009,30 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
         }
     }
 
+    /// Tool-use ids of stop requests whose result has not landed yet. A row is
+    /// only allowed to become `.killed` by a result that matches one of these.
+    private var pendingStopToolUseIds: Set<String> = []
+
     struct BackgroundShell: Identifiable, Equatable {
         /// Tool-use id of the originating `Bash` call. Used to pair the
         /// row with its later `tool_result` (which carries the
         /// `shell_id` the rest of the workflow uses).
         let toolUseId: String
-        /// Shell id assigned by `claude` once the bash actually starts.
-        /// Nil between the `Bash` tool_use landing and the matching
-        /// `tool_result`.
+        /// Shell id assigned by `claude` once the bash actually starts, scraped
+        /// from the `Bash` tool_result. Nil between the tool_use landing and
+        /// that result — and nil forever for shells the harness backgrounded on
+        /// its own, which never produce one.
         var shellId: String?
+        /// Task id from the harness' `task_started` / `task_notification`
+        /// events.
+        ///
+        /// Kept apart from `shellId` because they are **not interchangeable**
+        /// and address different tools: a `shell_id` is what `KillShell` takes,
+        /// a `task_id` is what `TaskStop` takes. Storing a task id in `shellId`
+        /// is what made the Kill button ask to `KillShell` an id no shell ever
+        /// had — the CLI does not even expose `KillShell` any more — and the
+        /// user got "No task found".
+        var taskId: String?
         /// The command claude requested, truncated to keep the row
         /// readable in the popover. Mutable because a row can start life
         /// named only by its task id — when we hear about the shell before
@@ -1036,9 +1051,20 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
 
         var id: String { toolUseId }
 
+        /// Why a stop request failed, shown on the row. Set only on rollback.
+        var stopFailureReason: String?
+        /// The status to restore if the stop request comes back failed.
+        var statusBeforeStop: Status?
+
         enum Status: Equatable {
             case starting
             case running
+            /// A stop was requested and the outcome is not known yet. This is
+            /// deliberately not `.killed`: the request can fail — the task may
+            /// belong to a previous session the running process cannot reach —
+            /// and a row that claims to be dead while the process is alive is
+            /// worse than one that admits it is waiting.
+            case stopping
             case completed(exitCode: String?)
             case killed
             case unknown
@@ -1197,6 +1223,7 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
         for message in messages {
             for block in message.blocks {
                 if case .toolResult(let result) = block {
+                    noteBackgroundStopResult(result)
                     noteBackgroundShellResult(result)
                 }
             }
@@ -2057,25 +2084,63 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
     /// and other built-ins) — the row is then moved to `.killed` by the
     /// resulting `KillShell` tool_use we observe in the next assistant
     /// event.
-    func killBackgroundShell(shellId: String) {
-        guard !shellId.isEmpty else { return }
-        // Optimistic flip so the popover shows the badge change right
-        // away. The actual transition is confirmed when claude emits
-        // the `KillShell` tool_use / tool_result a moment later.
-        if let idx = backgroundShells.firstIndex(where: { $0.shellId == shellId }) {
-            if case .completed = backgroundShells[idx].status { /* leave */ }
-            else if case .killed = backgroundShells[idx].status { /* leave */ }
-            else {
-                backgroundShells[idx].status = .killed
-            }
+    /// Ask claude to stop a background shell, addressed by whichever id the row
+    /// actually has.
+    ///
+    /// The tool depends on the id, and getting this wrong is not cosmetic:
+    ///
+    /// - A **`shell_id`** comes from a `Bash(run_in_background)` tool_result and
+    ///   is what `KillShell` takes.
+    /// - A **`task_id`** comes from the harness' own `task_started` events —
+    ///   how nearly every background command arrives now — and is what
+    ///   `TaskStop` takes.
+    ///
+    /// Sending a task id as `shell_id=` produced exactly the failure the user
+    /// hit: the model had to guess the translation, and answered
+    /// "No task found with ID: …". `KillShell` is not even in the CLI's tool
+    /// list any more; `TaskStop` is.
+    func killBackgroundShell(rowId: String) {
+        guard let idx = backgroundShells.firstIndex(where: { $0.id == rowId }) else { return }
+        switch backgroundShells[idx].status {
+        case .completed, .killed, .stopping:
+            // Already terminal, or a stop is already in flight.
+            return
+        case .starting, .running, .unknown:
+            break
         }
-        let expanded = String(
-            format: String(
-                localized: "claudeChat.bashes.kill.prompt",
-                defaultValue: "Use the KillShell tool to terminate shell_id=%@. Do not run any other commands."
-            ),
-            shellId
-        )
+
+        let expanded: String
+        if let taskId = backgroundShells[idx].taskId, !taskId.isEmpty {
+            expanded = String(
+                format: String(
+                    localized: "claudeChat.bashes.stop.taskPrompt",
+                    defaultValue: "Use the TaskStop tool to stop task_id=%@. Do not run any other commands."
+                ),
+                taskId
+            )
+        } else if let shellId = backgroundShells[idx].shellId, !shellId.isEmpty {
+            expanded = String(
+                format: String(
+                    localized: "claudeChat.bashes.kill.prompt",
+                    defaultValue: "Use the KillShell tool to terminate shell_id=%@. Do not run any other commands."
+                ),
+                shellId
+            )
+        } else {
+            // Nothing to address it by. Say so instead of sending a request
+            // that cannot name its target.
+            backgroundShells[idx].stopFailureReason = String(
+                localized: "claudeChat.bashes.stop.noIdentifier",
+                defaultValue: "This shell has no id claude can address yet."
+            )
+            return
+        }
+
+        // Pending, not done. The outcome is reconciled in
+        // `noteBackgroundStopResult` when the tool_result lands.
+        backgroundShells[idx].statusBeforeStop = backgroundShells[idx].status
+        backgroundShells[idx].status = .stopping
+        backgroundShells[idx].stopFailureReason = nil
         sendSlashCommand(name: "kill-shell", expandedText: expanded)
     }
 
@@ -2179,18 +2244,95 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             switch shell.status {
             case .completed, .killed:
                 return true
-            case .starting, .running, .unknown:
+            case .starting, .running, .unknown, .stopping:
+                // A stop still in flight is not finished: dropping the row here
+                // would lose the request and any failure it comes back with.
                 return false
             }
         }
     }
 
-    fileprivate func noteKillShellToolUse(_ toolUse: ChatMessageBlock.ToolUse) {
+    /// A `KillShell` / `TaskStop` tool_use seen in the transcript. Records which
+    /// row the request targets, so its result can be reconciled — the row is
+    /// *not* moved to `.killed` here, because a tool_use only means the model
+    /// tried.
+    func noteStopToolUse(_ toolUse: ChatMessageBlock.ToolUse) {
+        guard toolUse.name == "KillShell" || toolUse.name == "TaskStop" else { return }
         guard let input = parseJSONObject(toolUse.inputJSON) else { return }
-        guard let shellId = input["shell_id"] as? String, !shellId.isEmpty else { return }
-        if let idx = backgroundShells.firstIndex(where: { $0.shellId == shellId }) {
-            backgroundShells[idx].status = .killed
+
+        let idx: Int? = {
+            if let shellId = input["shell_id"] as? String, !shellId.isEmpty {
+                return backgroundShells.firstIndex { $0.shellId == shellId }
+            }
+            if let taskId = input["task_id"] as? String, !taskId.isEmpty {
+                return backgroundShells.firstIndex { $0.taskId == taskId }
+            }
+            return nil
+        }()
+        guard let idx else { return }
+
+        switch backgroundShells[idx].status {
+        case .completed, .killed:
+            return
+        case .starting, .running, .unknown:
+            // claude may stop a shell on its own initiative, without the popover
+            // button. Record the pending state so the result still reconciles.
+            backgroundShells[idx].statusBeforeStop = backgroundShells[idx].status
+            backgroundShells[idx].status = .stopping
+        case .stopping:
+            break
         }
+        pendingStopToolUseIds.insert(toolUse.id)
+    }
+
+    /// The result of a stop request. This is the authoritative answer, and the
+    /// only place a row becomes `.killed`.
+    ///
+    /// A failure rolls the row back to what it was and shows why. The case that
+    /// motivated this: a task from an earlier session, rebuilt into the popover
+    /// from the transcript, which the running process cannot reach — the stop
+    /// answers "No task found with ID: …" while the row happily claimed to be
+    /// killed.
+    func noteBackgroundStopResult(_ result: ChatMessageBlock.ToolResult) {
+        guard pendingStopToolUseIds.contains(result.toolUseId) else { return }
+        pendingStopToolUseIds.remove(result.toolUseId)
+        guard let idx = backgroundShells.firstIndex(where: {
+            if case .stopping = $0.status { return true }
+            return false
+        }) else { return }
+
+        if result.isError || Self.stopResultLooksLikeAFailure(result.content) {
+            backgroundShells[idx].status = backgroundShells[idx].statusBeforeStop ?? .unknown
+            backgroundShells[idx].statusBeforeStop = nil
+            backgroundShells[idx].stopFailureReason = Self.stopFailureSummary(result.content)
+            return
+        }
+        backgroundShells[idx].status = .killed
+        backgroundShells[idx].statusBeforeStop = nil
+        backgroundShells[idx].stopFailureReason = nil
+    }
+
+    /// A stop can fail while still being reported as a successful tool call, so
+    /// the content is inspected too.
+    static func stopResultLooksLikeAFailure(_ content: String) -> Bool {
+        let lower = content.lowercased()
+        for marker in ["no task found", "no shell found", "not found", "no such task",
+                       "no such shell", "unknown task", "already stopped", "does not exist"] {
+            if lower.contains(marker) { return true }
+        }
+        return false
+    }
+
+    static func stopFailureSummary(_ content: String) -> String {
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return String(
+                localized: "claudeChat.bashes.stop.failed",
+                defaultValue: "The stop request failed."
+            )
+        }
+        let firstLine = trimmed.components(separatedBy: "\n").first ?? trimmed
+        return firstLine.count > 140 ? String(firstLine.prefix(137)) + "…" : firstLine
     }
 
     /// Internal rather than fileprivate so the tests can replay the live
@@ -2212,7 +2354,7 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
         // once a shell has reached a terminal state, this must not drag it
         // back to .running.
         switch backgroundShells[idx].status {
-        case .killed, .completed:
+        case .killed, .completed, .stopping:
             return
         case .starting, .running, .unknown:
             break
@@ -2380,8 +2522,9 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             // A KillShell tool_use coming from claude itself moves the
             // matching row to `.killed` so the UI reflects it before the
             // result lands.
-            for case .toolUse(let toolUse) in blocks where toolUse.name == "KillShell" {
-                noteKillShellToolUse(toolUse)
+            for case .toolUse(let toolUse) in blocks
+            where toolUse.name == "KillShell" || toolUse.name == "TaskStop" {
+                noteStopToolUse(toolUse)
             }
             // `EnterWorktree` is a Claude Code built-in that swaps the
             // model's effective cwd to another git worktree but does NOT
@@ -2504,9 +2647,11 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
                         updateWorkingDirectory(pendingPath)
                     }
                     // Background-shell bookkeeping: a Bash tool_result
-                    // carries the shell_id (and sometimes an exit
-                    // status); a KillShell tool_result confirms the
-                    // matching shell was terminated.
+                    // carries the shell_id (and sometimes an exit status);
+                    // a TaskStop/KillShell tool_result is the authoritative
+                    // answer on whether the stop actually happened, and is
+                    // the only thing allowed to move a row to `.killed`.
+                    noteBackgroundStopResult(result)
                     noteBackgroundShellResult(result)
                 default:
                     // After a `--resume`, background-shell exits that happened
@@ -2629,7 +2774,7 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
                let i = backgroundShells.firstIndex(where: { $0.toolUseId == toolUseId }) {
                 return i
             }
-            return backgroundShells.firstIndex(where: { $0.shellId == taskId })
+            return backgroundShells.firstIndex(where: { $0.taskId == taskId })
         }()
         guard let index = matchedIndex else {
             // No matching row. This is the normal path, not an edge case:
@@ -2650,7 +2795,7 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             let preview = backgroundShellPreview(toolUseId: toolUseId, description: description, taskId: taskId)
             backgroundShells.append(BackgroundShell(
                 toolUseId: toolUseId ?? "task:\(taskId)",
-                shellId: taskId,
+                taskId: taskId,
                 commandPreview: preview.text,
                 startedAt: Date(),
                 status: initialStatus,
@@ -2666,8 +2811,8 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
             backgroundShells[index].commandPreview = preview.text
             backgroundShells[index].kind = preview.kind
         }
-        if backgroundShells[index].shellId == nil {
-            backgroundShells[index].shellId = taskId
+        if backgroundShells[index].taskId == nil {
+            backgroundShells[index].taskId = taskId
         }
         let resolved = resolveBackgroundShellStatus(rawStatus: status, exitCode: exitCode)
         if case .set(let newStatus) = resolved {
