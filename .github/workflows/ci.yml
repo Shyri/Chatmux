@@ -234,6 +234,9 @@ jobs:
       - name: Validate sidebar lazy-layout guard
         run: python3 tests/test_ci_sidebar_lazy_layout_guard.py
 
+      - name: Validate chat lazy-layout guard
+        run: python3 tests/test_ci_chat_lazy_layout_guard.py
+
       - name: Validate bash prompt bootstrap composes with user PROMPT_COMMAND (starship)
         run: python3 tests/test_issue_5164_starship_prompt_composition.py
 
