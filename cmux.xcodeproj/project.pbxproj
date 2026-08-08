@@ -201,7 +201,9 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		7C592156DCB3419BB95383E5 /* AutoNamingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7752D68A758642EFA282C208 /* AutoNamingEngineTests.swift */; };
 		A4ECF22C62724853A72D6BDE /* AutoNamingGrokAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07EC52007B2144C59C047774 /* AutoNamingGrokAdapterTests.swift */; };
 		74AB3F34FE3B4974A3A5D264 /* AutoNamingHookPayloadAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46792DAA478444ED87B17B31 /* AutoNamingHookPayloadAdapterTests.swift */; };
+		A5009B0100000000000000E6 /* AutoTaskConfigFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */; };
 		A5009B0100000000000000E0 /* AutoTaskConfigPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000DF /* AutoTaskConfigPath.swift */; };
+		A5009B0100000000000000E8 /* AutoTaskConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */; };
 		A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D7 /* AutoTaskLauncher.swift */; };
 		A5009B0100000000000000DC /* AutoTaskListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000DB /* AutoTaskListView.swift */; };
 		A5009B0100000000000000DE /* AutoTaskPanelActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000DD /* AutoTaskPanelActions.swift */; };
@@ -908,6 +910,7 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		5E55400000000000000000D1 /* FocusStealingResponderConformances.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E55400000000000000000D2 /* FocusStealingResponderConformances.swift */; };
 		C0DEFB100000000000000001 /* FocusSurfaceBroadcaster.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEFB100000000000000002 /* FocusSurfaceBroadcaster.swift */; };
 		C0DEFB300000000000000001 /* FocusSurfaceBroadcasterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DEFB300000000000000002 /* FocusSurfaceBroadcasterTests.swift */; };
+		A5009B0100000000000000E4 /* ForbiddenPathMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E3 /* ForbiddenPathMatcher.swift */; };
 		AA5269A0C0DE0002FACE0002 /* ForeignFirstResponderPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5269A0C0DE0001FACE0001 /* ForeignFirstResponderPolicy.swift */; };
 		AA5269A0C0DE0004FACE0004 /* ForeignFirstResponderPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5269A0C0DE0003FACE0003 /* ForeignFirstResponderPolicyTests.swift */; };
 		F0F0CF0F0000000000000001 /* ForkParentFallbackGeneralizationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0F0CF0F0000000000000002 /* ForkParentFallbackGeneralizationTests.swift */; };
@@ -2386,7 +2389,9 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		7752D68A758642EFA282C208 /* AutoNamingEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingEngineTests.swift; sourceTree = "<group>"; };
 		07EC52007B2144C59C047774 /* AutoNamingGrokAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingGrokAdapterTests.swift; sourceTree = "<group>"; };
 		46792DAA478444ED87B17B31 /* AutoNamingHookPayloadAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingHookPayloadAdapterTests.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigFile.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000DF /* AutoTaskConfigPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigPath.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTaskConfigTests.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D7 /* AutoTaskLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskLauncher.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000DB /* AutoTaskListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskListView.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000DD /* AutoTaskPanelActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskPanelActions.swift; sourceTree = "<group>"; };
@@ -3029,6 +3034,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		5E55400000000000000000D2 /* FocusStealingResponderConformances.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusStealingResponderConformances.swift; sourceTree = "<group>"; };
 		C0DEFB100000000000000002 /* FocusSurfaceBroadcaster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSurfaceBroadcaster.swift; sourceTree = "<group>"; };
 		C0DEFB300000000000000002 /* FocusSurfaceBroadcasterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusSurfaceBroadcasterTests.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000E3 /* ForbiddenPathMatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/ForbiddenPathMatcher.swift; sourceTree = "<group>"; };
 		AA5269A0C0DE0001FACE0001 /* ForeignFirstResponderPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/ForeignFirstResponderPolicy.swift; sourceTree = "<group>"; };
 		AA5269A0C0DE0003FACE0003 /* ForeignFirstResponderPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForeignFirstResponderPolicyTests.swift; sourceTree = "<group>"; };
 		F0F0CF0F0000000000000002 /* ForkParentFallbackGeneralizationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ForkParentFallbackGeneralizationTests.swift; sourceTree = "<group>"; };
@@ -5750,6 +5756,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				FE0030A3 /* RightSidebarToolPanel.swift */,
 				A5009B0100000000000000D1 /* ScheduledAutoTask.swift */,
 				A5009B0100000000000000D3 /* AutoTaskStore.swift */,
+				A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */,
+				A5009B0100000000000000E3 /* ForbiddenPathMatcher.swift */,
 				A5009B0100000000000000DF /* AutoTaskConfigPath.swift */,
 				A5009B0100000000000000DD /* AutoTaskPanelActions.swift */,
 				A5009B0100000000000000DB /* AutoTaskListView.swift */,
@@ -6000,6 +6008,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				CFB000612000000FORKTEST /* ClaudeSessionHistoryTests.swift */,
 				CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */,
 				A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */,
+				A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */,
 				CFB000712000000FORKTEST /* SlashCommandRegistryTests.swift */,
 				CFB000812000000FORKTEST /* StatusLineRunnerTests.swift */,
 				CFB000912000000FORKTEST /* GitLabModelDecodingTests.swift */,
@@ -7129,6 +7138,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5001A00A1B2C3D4E5F60718 /* AppWindowChromeComposition.swift in Sources */,
 				D9FEC58D5BACCF76459F1BBE /* AuthEnvironment.swift in Sources */,
 					D9FEC58D5BACCF76459F1BBE /* AuthEnvironment.swift in Sources */,
+				A5009B0100000000000000E6 /* AutoTaskConfigFile.swift in Sources */,
 				A5009B0100000000000000E0 /* AutoTaskConfigPath.swift in Sources */,
 				A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */,
 				A5009B0100000000000000DC /* AutoTaskListView.swift in Sources */,
@@ -7496,6 +7506,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				C4160A020000000000000001 /* FocusHistoryMenuInvalidator.swift in Sources */,
 				5E55400000000000000000D1 /* FocusStealingResponderConformances.swift in Sources */,
 					C0DEFB100000000000000001 /* FocusSurfaceBroadcaster.swift in Sources */,
+				A5009B0100000000000000E4 /* ForbiddenPathMatcher.swift in Sources */,
 				AA5269A0C0DE0002FACE0002 /* ForeignFirstResponderPolicy.swift in Sources */,
 				D0B10012A1B2C3D4E5F60001 /* GhosttyApp+SurfaceConfigurationReload.swift in Sources */,
 				EC010D01 /* GhosttyApp+TerminalCustomUpload.swift in Sources */,
@@ -8563,6 +8574,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				7C592156DCB3419BB95383E5 /* AutoNamingEngineTests.swift in Sources */,
 				A4ECF22C62724853A72D6BDE /* AutoNamingGrokAdapterTests.swift in Sources */,
 				74AB3F34FE3B4974A3A5D264 /* AutoNamingHookPayloadAdapterTests.swift in Sources */,
+				A5009B0100000000000000E8 /* AutoTaskConfigTests.swift in Sources */,
 				A5009B0100000000000000E2 /* AutoTaskStoreTests.swift in Sources */,
 				CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */,
 				D3622000A1B2C3D4E5F60718 /* BrowserArrowKeyForwardingTests.swift in Sources */,
