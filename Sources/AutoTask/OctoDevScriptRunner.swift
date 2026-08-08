@@ -38,6 +38,14 @@ struct OctoDevScriptRunner {
 
     /// Run a script to completion and parse its output.
     ///
+    /// **Blocking.** Never call this from the main thread: `init-config --auto`
+    /// resolves an Xcode scheme with `xcodebuild -list`, which takes 25 seconds
+    /// in a repository with a large SwiftPM graph — measured, in this one — and
+    /// the script gives it a 60-second timeout. Calling it on the main thread
+    /// freezes the app for as long as it runs, which is exactly what happened
+    /// the first time the setup assistant was opened. Use ``runAsync`` from UI
+    /// code; this stays for tests and for callers already off the main thread.
+    ///
     /// `repositoryPath` becomes the process's working directory — see the note
     /// above about `git rev-parse`.
     func run(
@@ -56,6 +64,10 @@ struct OctoDevScriptRunner {
         let err = Pipe()
         process.standardOutput = out
         process.standardError = err
+        // Nothing is going to answer a prompt. Without this the script inherits
+        // cmux's stdin, and anything that reads from it waits forever with no
+        // way out — `readDataToEndOfFile` below would never return.
+        process.standardInput = FileHandle.nullDevice
 
         do {
             try process.run()
@@ -89,6 +101,29 @@ struct OctoDevScriptRunner {
         )
     }
 
+    /// Run a script off the main thread and deliver the result back on it.
+    ///
+    /// This is what UI code must use. See ``run`` for why: these scripts shell
+    /// out to real build tooling and routinely take tens of seconds.
+    func runAsync(
+        _ script: Script,
+        arguments: [String],
+        repositoryPath: String
+    ) async -> Result<OctoDevScriptOutput, Failure> {
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                do {
+                    let output = try run(script, arguments: arguments, repositoryPath: repositoryPath)
+                    continuation.resume(returning: .success(output))
+                } catch let failure as Failure {
+                    continuation.resume(returning: .failure(failure))
+                } catch {
+                    continuation.resume(returning: .failure(.couldNotLaunch(error.localizedDescription)))
+                }
+            }
+        }
+    }
+
     /// Run a long script, streaming its combined output as it arrives.
     ///
     /// This is for `verify`, which runs the project's real build and can take
@@ -119,6 +154,7 @@ struct OctoDevScriptRunner {
         let err = Pipe()
         process.standardOutput = out
         process.standardError = err
+        process.standardInput = FileHandle.nullDevice
 
         let collected = OctoDevStreamBuffer()
         out.fileHandleForReading.readabilityHandler = { handle in

@@ -128,18 +128,18 @@ final class AutoTaskSetupModel: ObservableObject {
 
     // MARK: - Step 1: detect
 
-    func detectProject() {
+    func detectProject() async {
         phase = .running
-        do {
-            let out = try runner.run(.mrReview, arguments: ["detect-project"], repositoryPath: repositoryPath)
+        switch await runner.runAsync(.mrReview, arguments: ["detect-project"], repositoryPath: repositoryPath) {
+        case .failure(let failure):
+            phase = .failed(Self.describe(failure))
+        case .success(let out):
             projectType = out["PROJECT_TYPE"] ?? "unknown"
             platforms = (out["PLATFORMS"] ?? "")
                 .split(separator: " ")
                 .map(String.init)
             detectedSnapshotFramework = findSnapshotFramework()
             phase = .succeeded
-        } catch {
-            phase = .failed(Self.describe(error))
         }
     }
 
@@ -166,15 +166,21 @@ final class AutoTaskSetupModel: ObservableObject {
 
     // MARK: - Step 2: let the toolkit try
 
-    func runAutoProposal() {
+    /// Slow on purpose to wait for: on an Xcode project this resolves the
+    /// scheme with `xcodebuild -list`, measured at 25 seconds in this
+    /// repository. It must never run on the main thread.
+    func runAutoProposal() async {
         phase = .running
         autoFailureExplanation = nil
-        do {
-            let out = try runner.run(
-                .autoTask,
-                arguments: ["init-config", "--auto"],
-                repositoryPath: repositoryPath
-            )
+        let result = await runner.runAsync(
+            .autoTask,
+            arguments: ["init-config", "--auto"],
+            repositoryPath: repositoryPath
+        )
+        switch result {
+        case .failure(let failure):
+            phase = .failed(Self.describe(failure))
+        case .success(let out):
             verifyConfidence = out["VERIFY_CONFIDENCE"] ?? ""
             if let type = out["PROJECT_TYPE"], !type.isEmpty { projectType = type }
 
@@ -199,8 +205,6 @@ final class AutoTaskSetupModel: ObservableObject {
                 hasSnapshotTests: detectedSnapshotFramework != nil
             )
             phase = .succeeded
-        } catch {
-            phase = .failed(Self.describe(error))
         }
     }
 
@@ -217,24 +221,24 @@ final class AutoTaskSetupModel: ObservableObject {
     // MARK: - Step 4: write
 
     @discardableResult
-    func writeConfiguration() -> Bool {
+    func writeConfiguration() async -> Bool {
         phase = .running
         var arguments = ["init-config", "--verify-cmd", verifyCommand]
         if !forbiddenPaths.isEmpty { arguments += ["--forbidden", forbiddenPaths] }
         if !maxFiles.isEmpty { arguments += ["--max-files", maxFiles] }
         if !verifyTimeout.isEmpty { arguments += ["--timeout", verifyTimeout] }
 
-        do {
-            let out = try runner.run(.autoTask, arguments: arguments, repositoryPath: repositoryPath)
+        switch await runner.runAsync(.autoTask, arguments: arguments, repositoryPath: repositoryPath) {
+        case .failure(let failure):
+            phase = .failed(Self.describe(failure))
+            return false
+        case .success(let out):
             if out.failed {
                 phase = .failed(out.errorCode ?? out.rawStandardError)
                 return false
             }
             phase = .succeeded
             return true
-        } catch {
-            phase = .failed(Self.describe(error))
-            return false
         }
     }
 
@@ -328,25 +332,29 @@ final class AutoTaskSetupModel: ObservableObject {
 
     /// Adopt the measured timeout and rewrite the config with it.
     @discardableResult
-    func applySuggestedTimeout() -> Bool {
+    func applySuggestedTimeout() async -> Bool {
         guard let suggested = suggestedTimeout else { return false }
         verifyTimeout = String(suggested)
-        return writeConfiguration()
+        return await writeConfiguration()
     }
 
     // MARK: - Step 6: reviewer
 
     @discardableResult
-    func setReviewer() -> Bool {
+    func setReviewer() async -> Bool {
         let username = reviewerUsername.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !username.isEmpty else { return false }
         phase = .running
-        do {
-            let out = try runner.run(
-                .mrCreate,
-                arguments: ["set-reviewer", username],
-                repositoryPath: repositoryPath
-            )
+        let result = await runner.runAsync(
+            .mrCreate,
+            arguments: ["set-reviewer", username],
+            repositoryPath: repositoryPath
+        )
+        switch result {
+        case .failure(let failure):
+            phase = .failed(Self.describe(failure))
+            return false
+        case .success(let out):
             if out.failed {
                 phase = .failed(out.errorCode ?? out.rawStandardError)
                 return false
@@ -354,9 +362,6 @@ final class AutoTaskSetupModel: ObservableObject {
             refreshReviewerFile()
             phase = .succeeded
             return true
-        } catch {
-            phase = .failed(Self.describe(error))
-            return false
         }
     }
 

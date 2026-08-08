@@ -51,6 +51,11 @@ struct AutoTaskConfigView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color.darculaSidebarBackground)
+        .task {
+            // Off the main thread: `detect-project` shells out, and the editor
+            // must not freeze while it runs.
+            await model.refreshProjectType()
+        }
         .sheet(isPresented: $showingDiff) { diffSheet }
     }
 

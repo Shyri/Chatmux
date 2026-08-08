@@ -46,7 +46,6 @@ final class AutoTaskConfigEditorModel: ObservableObject {
 
     func reload() {
         saveError = nil
-        projectType = detectProjectType()
         hasMRCreateFile = fileManager.fileExists(
             atPath: (AutoTaskConfigPath.directory(inRepository: repositoryPath) as NSString)
                 .appendingPathComponent(AutoTaskConfigPath.mrCreateFileName)
@@ -69,15 +68,24 @@ final class AutoTaskConfigEditorModel: ObservableObject {
         loadState = .loaded
     }
 
-    /// Ask the toolkit, and accept not knowing. An empty answer simply means
-    /// the stack-specific warnings do not fire — better than firing them off a
-    /// second, cmux-side classification that could disagree with the one
-    /// `/auto-task` actually uses.
-    private func detectProjectType() -> String {
-        guard let out = try? runner.run(
+    /// Ask the toolkit, off the main thread, and accept not knowing.
+    ///
+    /// An empty answer simply means the stack-specific warnings do not fire —
+    /// better than firing them off a second, cmux-side classification that
+    /// could disagree with the one `/auto-task` actually uses.
+    ///
+    /// Deliberately not called from `init`/`reload`: shelling out while a view
+    /// is being constructed blocks the main thread, and these scripts are not
+    /// fast. The view kicks this off from `.task`.
+    func refreshProjectType() async {
+        switch await runner.runAsync(
             .mrReview, arguments: ["detect-project"], repositoryPath: repositoryPath
-        ) else { return "" }
-        return out["PROJECT_TYPE"] ?? ""
+        ) {
+        case .success(let out):
+            projectType = out["PROJECT_TYPE"] ?? ""
+        case .failure:
+            projectType = ""
+        }
     }
 
     private func applyFields(from config: AutoTaskConfigFile) {

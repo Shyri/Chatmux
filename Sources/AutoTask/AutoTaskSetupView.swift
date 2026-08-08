@@ -28,9 +28,12 @@ struct AutoTaskSetupView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Color.darculaSidebarBackground)
-        .onAppear {
+        .task {
             model.refreshInstalledScripts()
-            if model.canRun, model.projectType.isEmpty { model.detectProject() }
+            // `.task` rather than `.onAppear`: detection shells out, and every
+            // one of these scripts can take seconds. None of it may block the
+            // main thread.
+            if model.canRun, model.projectType.isEmpty { await model.detectProject() }
         }
     }
 
@@ -156,7 +159,7 @@ struct AutoTaskSetupView: View {
             phaseFooter
             navigation(canContinue: !model.effectiveProjectType.isEmpty) {
                 model.advance()
-                model.runAutoProposal()
+                Task { await model.runAutoProposal() }
             }
         }
     }
@@ -210,7 +213,16 @@ struct AutoTaskSetupView: View {
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 6).fill(Color.darculaCardBackground))
             } else {
-                ProgressView().controlSize(.small)
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text(String(
+                        localized: "autoTask.setup.propose.working",
+                        defaultValue: "Asking the toolkit… on an Xcode project this resolves the scheme and can take half a minute."
+                    ))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             phaseFooter
@@ -345,7 +357,7 @@ struct AutoTaskSetupView: View {
             navigation(
                 canContinue: !model.verifyCommand.trimmingCharacters(in: .whitespaces).isEmpty
             ) {
-                if model.writeConfiguration() { model.advance() }
+                Task { if await model.writeConfiguration() { model.advance() } }
             }
         }
     }
@@ -454,7 +466,7 @@ struct AutoTaskSetupView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     Spacer()
                     Button {
-                        model.applySuggestedTimeout()
+                        Task { await model.applySuggestedTimeout() }
                     } label: {
                         Text(String(localized: "autoTask.setup.validate.applyTimeout", defaultValue: "Apply"))
                     }
@@ -534,7 +546,7 @@ struct AutoTaskSetupView: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 240)
                 Button {
-                    model.setReviewer()
+                    Task { await model.setReviewer() }
                 } label: {
                     Text(String(localized: "autoTask.setup.reviewer.set", defaultValue: "Set reviewer"))
                 }
