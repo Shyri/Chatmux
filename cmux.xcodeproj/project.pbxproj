@@ -201,6 +201,11 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		7C592156DCB3419BB95383E5 /* AutoNamingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7752D68A758642EFA282C208 /* AutoNamingEngineTests.swift */; };
 		A4ECF22C62724853A72D6BDE /* AutoNamingGrokAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07EC52007B2144C59C047774 /* AutoNamingGrokAdapterTests.swift */; };
 		74AB3F34FE3B4974A3A5D264 /* AutoNamingHookPayloadAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46792DAA478444ED87B17B31 /* AutoNamingHookPayloadAdapterTests.swift */; };
+		A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D7 /* AutoTaskLauncher.swift */; };
+		A5009B0100000000000000DA /* AutoTaskSchedulePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D9 /* AutoTaskSchedulePicker.swift */; };
+		A5009B0100000000000000D6 /* AutoTaskScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D5 /* AutoTaskScheduler.swift */; };
+		A5009B0100000000000000D4 /* AutoTaskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D3 /* AutoTaskStore.swift */; };
+		A5009B0100000000000000E2 /* AutoTaskStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */; };
 		CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */; };
 		A5009B0100000000000000B6 /* BackgroundShellsPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000B5 /* BackgroundShellsPopover.swift */; };
 		C0DE35860000000000000001 /* BackgroundWorkspacePrimeCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE35860000000000000002 /* BackgroundWorkspacePrimeCoordinator.swift */; };
@@ -1450,6 +1455,7 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		C0DE1A080000000000000001 /* SavedLayoutDefinitionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE1A080000000000000002 /* SavedLayoutDefinitionTests.swift */; };
 		C0DE1A020000000000000001 /* SavedLayoutStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE1A020000000000000002 /* SavedLayoutStore.swift */; };
 		C0DE1A070000000000000001 /* SavedLayoutStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE1A070000000000000002 /* SavedLayoutStoreTests.swift */; };
+		A5009B0100000000000000D2 /* ScheduledAutoTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D1 /* ScheduledAutoTask.swift */; };
 		E8BA79E246754A8B99A0B823 /* ScreenIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47D5AA7D29C94F5CA865B2BF /* ScreenIdentity.swift */; };
 		D1F0A00600000000000000F1 /* ScreenLockObserver.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F0A00600000000000000F2 /* ScreenLockObserver.swift */; };
 		3865A0013865A0013865A001 /* SearchIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3865B0013865B0013865B001 /* SearchIndex.swift */; };
@@ -2377,6 +2383,11 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		7752D68A758642EFA282C208 /* AutoNamingEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingEngineTests.swift; sourceTree = "<group>"; };
 		07EC52007B2144C59C047774 /* AutoNamingGrokAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingGrokAdapterTests.swift; sourceTree = "<group>"; };
 		46792DAA478444ED87B17B31 /* AutoNamingHookPayloadAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoNamingHookPayloadAdapterTests.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000D7 /* AutoTaskLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskLauncher.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000D9 /* AutoTaskSchedulePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskSchedulePicker.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000D5 /* AutoTaskScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskScheduler.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000D3 /* AutoTaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskStore.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTaskStoreTests.swift; sourceTree = "<group>"; };
 		CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShellReconciliationTests.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000B5 /* BackgroundShellsPopover.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BackgroundShellsPopover.swift; sourceTree = "<group>"; };
 		C0DE35860000000000000002 /* BackgroundWorkspacePrimeCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundWorkspacePrimeCoordinator.swift; sourceTree = "<group>"; };
@@ -3556,6 +3567,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		C0DE1A080000000000000002 /* SavedLayoutDefinitionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedLayoutDefinitionTests.swift; sourceTree = "<group>"; };
 		C0DE1A020000000000000002 /* SavedLayoutStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedLayoutStore.swift; sourceTree = "<group>"; };
 		C0DE1A070000000000000002 /* SavedLayoutStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedLayoutStoreTests.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000D1 /* ScheduledAutoTask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/ScheduledAutoTask.swift; sourceTree = "<group>"; };
 		47D5AA7D29C94F5CA865B2BF /* ScreenIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App/ScreenIdentity.swift; sourceTree = "<group>"; };
 		D1F0A00600000000000000F2 /* ScreenLockObserver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenLockObserver.swift; sourceTree = "<group>"; };
 		3865B0013865B0013865B001 /* SearchIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Search/SearchIndex.swift; sourceTree = "<group>"; };
@@ -5730,6 +5742,11 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				46814000000000000000000E /* RightSidebarModeShortcutEntry.swift */,
 				468110000000000000000006 /* RightSidebarModeShortcutMatcher.swift */,
 				FE0030A3 /* RightSidebarToolPanel.swift */,
+				A5009B0100000000000000D1 /* ScheduledAutoTask.swift */,
+				A5009B0100000000000000D3 /* AutoTaskStore.swift */,
+				A5009B0100000000000000D9 /* AutoTaskSchedulePicker.swift */,
+				A5009B0100000000000000D7 /* AutoTaskLauncher.swift */,
+				A5009B0100000000000000D5 /* AutoTaskScheduler.swift */,
 				DCDC1000000000000000B002 /* DockConfigurationLoadResult.swift */,
 				DCDC1000000000000000B004 /* DockConfigFile.swift */,
 				DCDC1000000000000000B006 /* DockConfigIdentity.swift */,
@@ -5973,6 +5990,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				CFB000512000000FORKTEST /* ChatmuxUpstreamSeamTests.swift */,
 				CFB000612000000FORKTEST /* ClaudeSessionHistoryTests.swift */,
 				CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */,
+				A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */,
 				CFB000712000000FORKTEST /* SlashCommandRegistryTests.swift */,
 				CFB000812000000FORKTEST /* StatusLineRunnerTests.swift */,
 				CFB000912000000FORKTEST /* GitLabModelDecodingTests.swift */,
@@ -7102,6 +7120,10 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5001A00A1B2C3D4E5F60718 /* AppWindowChromeComposition.swift in Sources */,
 				D9FEC58D5BACCF76459F1BBE /* AuthEnvironment.swift in Sources */,
 					D9FEC58D5BACCF76459F1BBE /* AuthEnvironment.swift in Sources */,
+				A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */,
+				A5009B0100000000000000DA /* AutoTaskSchedulePicker.swift in Sources */,
+				A5009B0100000000000000D6 /* AutoTaskScheduler.swift in Sources */,
+				A5009B0100000000000000D4 /* AutoTaskStore.swift in Sources */,
 				A5009B0100000000000000B6 /* BackgroundShellsPopover.swift in Sources */,
 				C0DE35860000000000000001 /* BackgroundWorkspacePrimeCoordinator.swift in Sources */,
 					C0DE35860000000000000001 /* BackgroundWorkspacePrimeCoordinator.swift in Sources */,
@@ -7844,6 +7866,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				FE003105 /* RovoDevIndex.swift in Sources */,
 				FE003107 /* RovoDevTranscriptPreview.swift in Sources */,
 				C0DE1A020000000000000001 /* SavedLayoutStore.swift in Sources */,
+				A5009B0100000000000000D2 /* ScheduledAutoTask.swift in Sources */,
 				E8BA79E246754A8B99A0B823 /* ScreenIdentity.swift in Sources */,
 				D1F0A00600000000000000F1 /* ScreenLockObserver.swift in Sources */,
 				3865A0013865A0013865A001 /* SearchIndex.swift in Sources */,
@@ -8528,6 +8551,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				7C592156DCB3419BB95383E5 /* AutoNamingEngineTests.swift in Sources */,
 				A4ECF22C62724853A72D6BDE /* AutoNamingGrokAdapterTests.swift in Sources */,
 				74AB3F34FE3B4974A3A5D264 /* AutoNamingHookPayloadAdapterTests.swift in Sources */,
+				A5009B0100000000000000E2 /* AutoTaskStoreTests.swift in Sources */,
 				CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */,
 				D3622000A1B2C3D4E5F60718 /* BrowserArrowKeyForwardingTests.swift in Sources */,
 				8054B0030000000000000003 /* BrowserAutomationRecoveryLifecycleTests.swift in Sources */,

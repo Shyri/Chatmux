@@ -38,6 +38,10 @@ struct GitLabSidebarView: View {
     var onStartTask: ((Int) -> Void)? = nil
     /// Same, for `/mr-review <iid>` on a merge request.
     var onReviewMergeRequest: ((Int) -> Void)? = nil
+    /// Run `/auto-task <iid>` now, or queue it for a date. Both carry the issue
+    /// title so the auto-task queue can render without going back to GitLab.
+    var onRunAutoTask: ((Int, String) -> Void)? = nil
+    var onScheduleAutoTask: ((Int, String, Date) -> Void)? = nil
     @State private var selectedTab: GitLabSidebarTab = .mergeRequests
 
     var body: some View {
@@ -149,7 +153,12 @@ struct GitLabSidebarView: View {
         case .pipelines:
             PipelinesListView(workspace: workspace)
         case .issues:
-            IssuesListView(workspace: workspace, onStartTask: onStartTask)
+            IssuesListView(
+                workspace: workspace,
+                onStartTask: onStartTask,
+                onRunAutoTask: onRunAutoTask,
+                onScheduleAutoTask: onScheduleAutoTask
+            )
         case .releases:
             ReleasesListView(workspace: workspace)
         }
@@ -181,6 +190,46 @@ enum GitLabChatCommand {
 ///
 /// Mirrors `SessionEntryResumeCoordinator`: the sidebar views take a plain
 /// closure, and the container that owns the `TabManager` binds it here.
+extension GitLabSidebarView {
+    /// Bind every sidebar action to a workspace and the tab manager.
+    ///
+    /// Both mount sites (`RightSidebarToolPanelView` and `RightSidebarPanelView`)
+    /// need the same four closures; without this they drift apart, which is
+    /// exactly what the shared-behavior rule in `CLAUDE.md` exists to prevent.
+    @MainActor
+    init(workspace: Workspace, tabManager: TabManager) {
+        self.init(
+            workspace: workspace,
+            onStartTask: { iid in
+                GitLabChatCommandCoordinator.run(
+                    .startTask, iid: iid, workspace: workspace, tabManager: tabManager
+                )
+            },
+            onReviewMergeRequest: { iid in
+                GitLabChatCommandCoordinator.run(
+                    .reviewMergeRequest, iid: iid, workspace: workspace, tabManager: tabManager
+                )
+            },
+            onRunAutoTask: { iid, title in
+                AutoTaskLauncher.runNow(
+                    issueIID: iid,
+                    issueTitle: title,
+                    repositoryPath: workspace.currentDirectory,
+                    tabManager: tabManager
+                )
+            },
+            onScheduleAutoTask: { iid, title, date in
+                AutoTaskLauncher.schedule(
+                    issueIID: iid,
+                    issueTitle: title,
+                    repositoryPath: workspace.currentDirectory,
+                    at: date
+                )
+            }
+        )
+    }
+}
+
 enum GitLabChatCommandCoordinator {
     @MainActor
     static func run(

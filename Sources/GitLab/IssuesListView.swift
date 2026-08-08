@@ -298,6 +298,11 @@ struct IssuesListView: View {
     /// Start `/start-task <iid>` in a new chat tab. Injected by the container
     /// that owns the `TabManager`; `nil` where no chat can be opened.
     var onStartTask: ((Int) -> Void)? = nil
+    /// Run `/auto-task <iid>` now. Takes the issue title too: the queue keeps a
+    /// snapshot so the panel renders without going back to GitLab.
+    var onRunAutoTask: ((Int, String) -> Void)? = nil
+    /// Queue `/auto-task <iid>` for a date.
+    var onScheduleAutoTask: ((Int, String, Date) -> Void)? = nil
     @StateObject private var state = IssuesState()
     @ObservedObject private var filtersStore = GitLabIssueFiltersStore.shared
     @State private var milestoneFilter: String = ""  // "" = all, kNoMilestoneSentinel = no milestone, else milestone title
@@ -307,6 +312,7 @@ struct IssuesListView: View {
     /// filesystem scan, and the rows below the `LazyVStack` boundary must
     /// receive plain values.
     @State private var startTaskAvailable = false
+    @State private var autoTaskAvailable = false
 
     private var hasMilestoneOptions: Bool {
         !availableMilestones.isEmpty || state.issues.contains(where: { $0.milestone == nil })
@@ -756,6 +762,12 @@ struct IssuesListView: View {
                         },
                         onStartTask: startTaskAvailable
                             ? { onStartTask?(issue.iid) }
+                            : nil,
+                        onRunAutoTask: autoTaskAvailable
+                            ? { onRunAutoTask?(issue.iid, issue.title) }
+                            : nil,
+                        onScheduleAutoTask: autoTaskAvailable
+                            ? { date in onScheduleAutoTask?(issue.iid, issue.title, date) }
                             : nil
                     )
                     .padding(.horizontal, 8)
@@ -793,13 +805,16 @@ struct IssuesListView: View {
     /// presence is a property of the checkout, not of cmux. Re-resolved
     /// whenever the workspace directory changes.
     private func refreshStartTaskAvailability() {
-        let available = onStartTask != nil
-            && GitLabChatCommandCoordinator.isAvailable(
-                .startTask,
-                directory: workspace.currentDirectory
-            )
-        if startTaskAvailable != available {
-            startTaskAvailable = available
+        let directory = workspace.currentDirectory
+        let start = onStartTask != nil
+            && GitLabChatCommandCoordinator.isAvailable(.startTask, directory: directory)
+        if startTaskAvailable != start {
+            startTaskAvailable = start
+        }
+        let auto = onRunAutoTask != nil
+            && AutoTaskLauncher.isAvailable(directory: directory)
+        if autoTaskAvailable != auto {
+            autoTaskAvailable = auto
         }
     }
 
@@ -866,6 +881,10 @@ private struct IssueCardView: View {
     /// the workspace — offering a menu item that resolves to nothing would
     /// be worse than not offering it.
     let onStartTask: (() -> Void)?
+    /// Same, for `/auto-task`: run it now, or schedule it for a date.
+    let onRunAutoTask: (() -> Void)?
+    let onScheduleAutoTask: ((Date) -> Void)?
+    @State private var isPickingSchedule = false
     @State private var isHovered = false
     @Environment(\.gitlabLabelsByName) private var labelsByName
 
@@ -914,6 +933,26 @@ private struct IssueCardView: View {
                         systemImage: "play.circle"
                     )
                 }
+            }
+            if let onRunAutoTask {
+                Button(action: onRunAutoTask) {
+                    Label(
+                        String(localized: "issue.card.runAutoTask", defaultValue: "Run Auto-Task Now"),
+                        systemImage: "bolt.circle"
+                    )
+                }
+            }
+            if onScheduleAutoTask != nil {
+                Button {
+                    isPickingSchedule = true
+                } label: {
+                    Label(
+                        String(localized: "issue.card.scheduleAutoTask", defaultValue: "Schedule Auto-Task…"),
+                        systemImage: "clock.badge.checkmark"
+                    )
+                }
+            }
+            if onStartTask != nil || onRunAutoTask != nil || onScheduleAutoTask != nil {
                 Divider()
             }
             Button {
@@ -935,6 +974,12 @@ private struct IssueCardView: View {
                 )
             }
             assigneeSubmenu
+        }
+        .popover(isPresented: $isPickingSchedule, arrowEdge: .trailing) {
+            AutoTaskSchedulePicker(issueIID: issue.iid) { date in
+                isPickingSchedule = false
+                onScheduleAutoTask?(date)
+            }
         }
         .help(issue.webURL)
     }

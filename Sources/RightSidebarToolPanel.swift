@@ -298,26 +298,8 @@ struct RightSidebarToolPanelView: View {
             )
         case .gitlab:
             if let workspace = panel.attachedWorkspace {
-                GitLabSidebarView(
-                    workspace: workspace,
-                    onStartTask: { iid in
-                        GitLabChatCommandCoordinator.run(
-                            .startTask,
-                            iid: iid,
-                            workspace: workspace,
-                            tabManager: tabManager
-                        )
-                    },
-                    onReviewMergeRequest: { iid in
-                        GitLabChatCommandCoordinator.run(
-                            .reviewMergeRequest,
-                            iid: iid,
-                            workspace: workspace,
-                            tabManager: tabManager
-                        )
-                    }
-                )
-                .id(workspace.id)
+                GitLabSidebarView(workspace: workspace, tabManager: tabManager)
+                    .id(workspace.id)
             } else {
                 EmptyView()
             }

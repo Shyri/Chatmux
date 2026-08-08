@@ -433,26 +433,8 @@ struct RightSidebarPanelView: View {
                 dockPanel(windowAppearance: windowAppearance)
             case .gitlab:
                 if let ws = workspace {
-                    GitLabSidebarView(
-                        workspace: ws,
-                        onStartTask: { iid in
-                            GitLabChatCommandCoordinator.run(
-                                .startTask,
-                                iid: iid,
-                                workspace: ws,
-                                tabManager: tabManager
-                            )
-                        },
-                        onReviewMergeRequest: { iid in
-                            GitLabChatCommandCoordinator.run(
-                                .reviewMergeRequest,
-                                iid: iid,
-                                workspace: ws,
-                                tabManager: tabManager
-                            )
-                        }
-                    )
-                    .id(ws.id)
+                    GitLabSidebarView(workspace: ws, tabManager: tabManager)
+                        .id(ws.id)
                 } else {
                     Color.clear
                 }

@@ -1517,6 +1517,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         } else {
             MenuBarOnlySettings.normalizeLegacyStoredPreference()
             syncActivationPolicy()
+            // Scheduled `/auto-task` runs. Never under XCTest: the queue lives
+            // in the shared Application Support folder, so a test run would
+            // fire the developer's real autonomous tasks.
+            startAutoTaskScheduler()
         }
         StartupBreadcrumbLog.append("appDelegate.didFinish.activationPolicy.synced")
         // Prewarm the shared restorable-agent index off the main thread so the first
@@ -8384,6 +8388,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
             onFailure: onSendFailure
         )
         return true
+    }
+
+    /// Wire the scheduled-auto-task timer and start it.
+    ///
+    /// The launch target is resolved *at fire time*, not now: there is one
+    /// `TabManager` per main window, and which window is preferred can change
+    /// between scheduling a task and it coming due — or there may be no window
+    /// at all, in which case the run is recorded as failed rather than opening
+    /// one on the user's behalf while they are away.
+    private func startAutoTaskScheduler() {
+        AutoTaskScheduler.shared.launch = { task in
+            guard let tabManager = AppDelegate.shared?
+                .preferredRegisteredMainWindowContext()?.tabManager else {
+                AutoTaskStore.shared.markFailed(
+                    id: task.id,
+                    reason: String(
+                        localized: "autoTask.failure.noWindow",
+                        defaultValue: "No cmux window was open when this task came due."
+                    )
+                )
+                return
+            }
+            AutoTaskLauncher.launch(task, tabManager: tabManager)
+        }
+        AutoTaskScheduler.shared.start()
     }
 
     @discardableResult

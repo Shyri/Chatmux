@@ -4136,12 +4136,22 @@ class TabManager: ObservableObject {
     /// hands back the panel itself, for callers that need to drive it right
     /// after creation (e.g. running a slash command in a freshly opened
     /// chat).
+    ///
+    /// `inWorkspace` pins the chat to a specific workspace instead of whichever
+    /// is selected. A scheduled run belongs to a repository, and by the time
+    /// its timer fires the user may be looking at something else entirely.
+    ///
+    /// `permissionMode` is applied before the first message is sent, so an
+    /// autonomous run can start in `.auto` rather than stalling on an approval
+    /// card nobody is there to answer.
     @discardableResult
     func openClaudeChatPanel(
         resumingSessionId: String? = nil,
-        workingDirectory: String? = nil
+        workingDirectory: String? = nil,
+        inWorkspace requestedWorkspace: Workspace? = nil,
+        permissionMode: ChatPermissionMode? = nil
     ) -> ClaudeChatPanel? {
-        guard let workspace = selectedWorkspace else { return nil }
+        guard let workspace = requestedWorkspace ?? selectedWorkspace else { return nil }
         if selectedTabId != workspace.id {
             selectedTabId = workspace.id
         }
@@ -4172,8 +4182,37 @@ class TabManager: ObservableObject {
               ) else {
             return nil
         }
+        if let permissionMode {
+            chatPanel.permissionMode = permissionMode
+        }
         rememberFocusedSurface(tabId: workspace.id, surfaceId: chatPanel.id)
         return chatPanel
+    }
+
+    /// The open workspace rooted at `path`, if any.
+    ///
+    /// Compared on standardized paths so `/tmp/x`, `/tmp/x/`, and a path with a
+    /// symlinked prefix all resolve to the same workspace.
+    func workspace(forDirectory path: String) -> Workspace? {
+        let target = Self.standardizedDirectory(path)
+        guard !target.isEmpty else { return nil }
+        for tab in tabs where !tab.isRemoteWorkspace {
+            if Self.standardizedDirectory(tab.currentDirectory) == target {
+                return tab
+            }
+        }
+        return nil
+    }
+
+    private static func standardizedDirectory(_ path: String) -> String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        let standardized = URL(fileURLWithPath: trimmed).standardizedFileURL.resolvingSymlinksInPath().path
+        // Trailing slash is not meaningful for a directory identity.
+        if standardized.count > 1, standardized.hasSuffix("/") {
+            return String(standardized.dropLast())
+        }
+        return standardized
     }
 
     /// Reopen the most recently closed browser panel (Cmd+Shift+T).
