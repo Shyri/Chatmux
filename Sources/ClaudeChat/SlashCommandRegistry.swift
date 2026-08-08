@@ -7,9 +7,11 @@ import Foundation
 ///   never leave the app.
 /// - **Custom**: markdown files under `~/.claude/commands/` (user) or
 ///   `<cwd>/.claude/commands/` (project), which Claude Code itself
-///   exposes as `/<filename>`. We just give them the same autocomplete
-///   surface and forward the literal text to claude as the prompt; claude
-///   takes care of expanding the command body server-side.
+///   exposes as `/<filename>`. cmux gives them the same autocomplete
+///   surface and expands them locally — reading the `.md` body and
+///   substituting the argument placeholders — because headless
+///   `claude -p` is handed a prompt, not a `/<name>` line, and so never
+///   runs the expansion itself.
 struct SlashCommand: Identifiable, Equatable {
     enum Source: Equatable {
         case builtin
@@ -292,6 +294,79 @@ enum SlashCommandRegistry {
         // No closing fence — treat the whole file as body to be safe.
         _ = scanner
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Look a command up by its `/`-less name. Only commands backed by a
+    /// file can be resolved: built-ins run in-app and CLI-reported ones
+    /// have no body to read.
+    static func command(named name: String, cwd: String?) -> SlashCommand? {
+        availableCommands(cwd: cwd).first { command in
+            guard command.name == name else { return false }
+            switch command.source {
+            case .userCustom, .projectCustom: return true
+            case .builtin, .cliReported: return false
+            }
+        }
+    }
+
+    /// Substitute a custom command's argument placeholders, the way Claude
+    /// Code does when it expands the command itself: `$ARGUMENTS` becomes
+    /// the whole argument string, `$1`…`$9` the whitespace-separated
+    /// positional arguments.
+    ///
+    /// cmux has to do this itself because headless `claude -p` never sees
+    /// the `/<name>` line — the panel reads the `.md` body and forwards it
+    /// as the prompt (see `confirmSlashSelection`). Without substitution a
+    /// literal `$ARGUMENTS` reaches the model and the issue number the
+    /// user typed is silently lost.
+    ///
+    /// A command whose body has no placeholder but was given arguments
+    /// gets them appended as a trailing line. Claude Code drops them in
+    /// that case; dropping the one number the user picked out of a context
+    /// menu is worse than passing it along, and the wording keeps it
+    /// unambiguous to the model.
+    static func expand(body: String, arguments: String) -> String {
+        let args = arguments.trimmingCharacters(in: .whitespacesAndNewlines)
+        let positional = args.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+
+        var out = ""
+        var substituted = false
+        var rest = body[...]
+
+        // Hand-rolled scan rather than `replacingOccurrences`: `$1` must not
+        // also match inside `$10`, and a chained replace would rewrite text
+        // that an earlier substitution had just inserted.
+        while let dollar = rest.firstIndex(of: "$") {
+            out += rest[..<dollar]
+            let afterDollar = rest.index(after: dollar)
+            if rest[afterDollar...].hasPrefix("ARGUMENTS") {
+                out += args
+                substituted = true
+                rest = rest[rest.index(afterDollar, offsetBy: "ARGUMENTS".count)...]
+                continue
+            }
+            // `$1`…`$9`, but only when a single digit follows — `$12` is
+            // not a placeholder Claude Code defines, so it stays literal.
+            if let digit = rest[afterDollar...].first, let index = digit.wholeNumberValue,
+               (1...9).contains(index) {
+                let afterDigit = rest.index(after: afterDollar)
+                let isSingleDigit = rest[afterDigit...].first?.isNumber != true
+                if isSingleDigit {
+                    if index <= positional.count {
+                        out += positional[index - 1]
+                    }
+                    substituted = true
+                    rest = rest[afterDigit...]
+                    continue
+                }
+            }
+            out.append("$")
+            rest = rest[afterDollar...]
+        }
+        out += rest
+
+        guard !args.isEmpty, !substituted else { return out }
+        return out + "\n\nArguments: \(args)"
     }
 
     /// Best-effort one-line description for a custom command markdown

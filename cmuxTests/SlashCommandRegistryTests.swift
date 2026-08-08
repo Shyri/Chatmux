@@ -197,6 +197,96 @@ import Testing
         #expect(SlashCommandRegistry.readBody(of: command) == "")
     }
 
+    // MARK: - argument expansion
+    //
+    // Custom commands are expanded on cmux's side: headless `claude -p` is
+    // handed a prompt, never a `/<name>` line, so it never substitutes the
+    // placeholders itself. Before this, `/start-task 4529` reached the model
+    // as a body containing a literal `$ARGUMENTS` and the issue number was
+    // silently dropped.
+
+    @Test func expandSubstitutesArguments() {
+        #expect(
+            SlashCommandRegistry.expand(body: "Work on issue $ARGUMENTS now.", arguments: "4529")
+                == "Work on issue 4529 now."
+        )
+    }
+
+    @Test func expandSubstitutesEveryOccurrence() {
+        #expect(
+            SlashCommandRegistry.expand(body: "$ARGUMENTS / $ARGUMENTS", arguments: "7")
+                == "7 / 7"
+        )
+    }
+
+    @Test func expandSubstitutesPositionalArguments() {
+        #expect(
+            SlashCommandRegistry.expand(body: "issue $1 onto $2", arguments: "4529 main")
+                == "issue 4529 onto main"
+        )
+    }
+
+    @Test func expandDropsPositionalsWithNoMatchingArgument() {
+        #expect(SlashCommandRegistry.expand(body: "a $1 b $2 c", arguments: "only") == "a only b  c")
+    }
+
+    /// `$1` must not match inside `$12`, and `$0` is not a placeholder —
+    /// both stay literal rather than being rewritten.
+    @Test func expandLeavesNonPlaceholderDollarsAlone() {
+        #expect(SlashCommandRegistry.expand(body: "cost is $12 and $0", arguments: "x")
+            == "cost is $12 and $0\n\nArguments: x")
+        #expect(SlashCommandRegistry.expand(body: "shell $VAR stays", arguments: "")
+            == "shell $VAR stays")
+    }
+
+    /// A command whose body has no placeholder still has to see the argument
+    /// the user picked — appending it beats dropping it on the floor.
+    @Test func expandAppendsArgumentsWhenBodyHasNoPlaceholder() {
+        #expect(
+            SlashCommandRegistry.expand(body: "Do the thing.", arguments: "4529")
+                == "Do the thing.\n\nArguments: 4529"
+        )
+    }
+
+    @Test func expandWithoutArgumentsLeavesBodyUnchangedApartFromPlaceholders() {
+        #expect(SlashCommandRegistry.expand(body: "Do the thing.", arguments: "") == "Do the thing.")
+        #expect(SlashCommandRegistry.expand(body: "issue $ARGUMENTS", arguments: "") == "issue ")
+    }
+
+    // MARK: - lookup by name
+
+    @Test func commandNamedFindsProjectCommand() throws {
+        try withTemporaryCwd { cwd in
+            let dir = cwd.appendingPathComponent(".claude/commands", isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try "Body".write(
+                to: dir.appendingPathComponent("start-task.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+            let found = SlashCommandRegistry.command(named: "start-task", cwd: cwd.path)
+            #expect(found?.name == "start-task")
+            // Project scope must win: the developer running these tests may
+            // well have a user-level start-task.md too.
+            #expect(found?.source == .projectCustom(dir.appendingPathComponent("start-task.md")))
+        }
+    }
+
+    /// Built-ins have no body to expand, so resolving one by name would give
+    /// callers an empty prompt. They must not be returned.
+    ///
+    /// Asserted on the source rather than on `nil` because the registry also
+    /// scans the real `~/.claude/commands`, which no test can isolate.
+    @Test func commandNamedIgnoresBuiltins() {
+        #expect(SlashCommandRegistry.command(named: "clear", cwd: nil)?.source != .builtin)
+    }
+
+    @Test func commandNamedReturnsNilForUnknownName() throws {
+        try withTemporaryCwd { cwd in
+            #expect(SlashCommandRegistry.command(named: "no-such-command", cwd: cwd.path) == nil)
+        }
+    }
+
     // MARK: - helper
 
     private func withTemporaryCwd(_ body: (URL) throws -> Void) throws {
@@ -207,5 +297,105 @@ import Testing
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: url) }
         try body(url)
+    }
+}
+
+/// Chatmux-only: the shared path behind every entrypoint that runs a slash
+/// command — the composer's submit, the autocomplete popup, and the GitLab
+/// issues context menu's "Start Task".
+@Suite struct ChatSlashCommandLauncherTests {
+    private func withProjectCommand(
+        named name: String,
+        body: String,
+        _ test: (String) throws -> Void
+    ) throws {
+        let cwd = FileManager.default.temporaryDirectory.appendingPathComponent(
+            "ChatSlashCommandLauncherTests-\(UUID().uuidString)",
+            isDirectory: true
+        )
+        let dir = cwd.appendingPathComponent(".claude/commands", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: cwd) }
+        try body.write(
+            to: dir.appendingPathComponent("\(name).md"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try test(cwd.path)
+    }
+
+    // MARK: - parse
+
+    @Test func parseSplitsCommandFromArguments() {
+        let parsed = ChatSlashCommandLauncher.parse(draft: "/start-task 4529")
+        #expect(parsed?.name == "start-task")
+        #expect(parsed?.arguments == "4529")
+    }
+
+    @Test func parseKeepsEverythingAfterTheFirstSpaceAsArguments() {
+        #expect(ChatSlashCommandLauncher.parse(draft: "/fix  4529 on main")?.arguments == "4529 on main")
+    }
+
+    /// No arguments means the autocomplete popup owns it — `parse` must
+    /// stand aside so `confirmSlashSelection` keeps its behaviour.
+    @Test func parseIgnoresArgumentlessCommands() {
+        #expect(ChatSlashCommandLauncher.parse(draft: "/clear") == nil)
+        #expect(ChatSlashCommandLauncher.parse(draft: "/clear   ") == nil)
+    }
+
+    /// A prompt that merely opens with an absolute path is not a command.
+    @Test func parseIgnoresLeadingFilePaths() {
+        #expect(ChatSlashCommandLauncher.parse(draft: "/Users/me/notes.txt — read this") == nil)
+    }
+
+    @Test func parseIgnoresPlainText() {
+        #expect(ChatSlashCommandLauncher.parse(draft: "start-task 4529") == nil)
+    }
+
+    // MARK: - expansion
+
+    @Test func expansionSubstitutesArgumentsAndLabelsTheRow() throws {
+        try withProjectCommand(
+            named: "start-task",
+            body: "---\ndescription: x\n---\nWork on issue $ARGUMENTS."
+        ) { cwd in
+            let expansion = ChatSlashCommandLauncher.expansion(
+                name: "start-task",
+                arguments: "4529",
+                cwd: cwd
+            )
+            #expect(expansion?.text == "Work on issue 4529.")
+            // The collapsed transcript row renders this as `/start-task 4529`,
+            // so the invocation stays visible after the body is expanded.
+            #expect(expansion?.displayName == "start-task 4529")
+        }
+    }
+
+    @Test func expansionWithoutArgumentsUsesBareCommandName() throws {
+        try withProjectCommand(named: "review", body: "Review the diff.") { cwd in
+            let expansion = ChatSlashCommandLauncher.expansion(
+                name: "review",
+                arguments: "",
+                cwd: cwd
+            )
+            #expect(expansion?.displayName == "review")
+            #expect(expansion?.text == "Review the diff.")
+        }
+    }
+
+    /// Unknown names must not be swallowed: the composer falls back to
+    /// sending the literal text, which is what it did before.
+    @Test func expansionReturnsNilForUnknownCommand() throws {
+        try withProjectCommand(named: "start-task", body: "Body") { cwd in
+            #expect(
+                ChatSlashCommandLauncher.expansion(name: "compact", arguments: "x", cwd: cwd) == nil
+            )
+        }
+    }
+
+    @Test func expansionReturnsNilForEmptyCommandFile() throws {
+        try withProjectCommand(named: "empty", body: "---\ndescription: x\n---\n") { cwd in
+            #expect(ChatSlashCommandLauncher.expansion(name: "empty", arguments: "1", cwd: cwd) == nil)
+        }
     }
 }

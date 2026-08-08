@@ -2345,6 +2345,22 @@ struct ClaudeChatPanelView: View {
         }
         let trimmed = panel.draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        // `/<name> <args>` — the popup hides once a space is typed, so this
+        // is the only place the argument form is seen. Expand it locally for
+        // the same reason `confirmSlashSelection` does; unknown names fall
+        // through and are sent verbatim, which is what they did before.
+        if let parsed = ChatSlashCommandLauncher.parse(draft: trimmed),
+           let expansion = ChatSlashCommandLauncher.expansion(
+               name: parsed.name,
+               arguments: parsed.arguments,
+               cwd: panel.workingDirectory
+           ) {
+            panel.sendSlashCommand(name: expansion.displayName, expandedText: expansion.text)
+            panel.draft = ""
+            exitHistoryMode()
+            forceScrollToBottomToken &+= 1
+            return
+        }
         // Allow sending while the previous turn is still in flight —
         // panel.send queues it and the panel drains the queue when the
         // current turn completes (mirroring Claude Code's interactive UX).
@@ -2596,13 +2612,17 @@ struct ClaudeChatPanelView: View {
             // forward it as the actual prompt, and tag the local
             // transcript message so the UI shows the original
             // `/<name>` in a collapsed tool-card-style row.
-            let body = SlashCommandRegistry.readBody(of: cmd)
-            if body.isEmpty {
-                // Empty file or unreadable — fall back to sending the
-                // literal command (claude may at least echo something).
-                panel.send("/" + cmd.name)
+            //
+            // The popup closes as soon as the user types a space, so a
+            // pick from it never carries arguments; `submit()` handles
+            // the `/<name> <args>` form through the same launcher.
+            if let expansion = ChatSlashCommandLauncher.expansion(command: cmd, arguments: "") {
+                panel.sendSlashCommand(name: expansion.displayName, expandedText: expansion.text)
             } else {
-                panel.sendSlashCommand(name: cmd.name, expandedText: body)
+                // Built-in, CLI-reported, or an empty/unreadable file —
+                // fall back to sending the literal command (claude may at
+                // least echo something).
+                panel.send("/" + cmd.name)
             }
             panel.draft = ""
             forceScrollToBottomToken &+= 1
