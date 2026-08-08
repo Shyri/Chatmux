@@ -243,7 +243,12 @@ enum GitLabChatCommandCoordinator {
             running: command.commandName,
             arguments: String(iid),
             workingDirectory: directory.isEmpty ? nil : directory,
-            tabManager: tabManager
+            tabManager: tabManager,
+            // Same reason `/auto-task` runs this way: these commands carry out
+            // a whole flow — branch, worktree, edits, MR — and answering an
+            // approval card per tool is not what you asked for when you picked
+            // the item out of a context menu.
+            permissionMode: .auto
         )
     }
 
