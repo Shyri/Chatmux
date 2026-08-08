@@ -155,9 +155,8 @@ struct GitLabSidebarView: View {
 }
 
 /// Bridges "start this issue" from the GitLab sidebar into the chat: opens a
-/// new Claude Chat tab in the selected workspace and runs `/start-task <iid>`
-/// in it, expanding the command's markdown body the same way the composer
-/// does.
+/// new Claude Chat tab in the selected workspace and sends `/start-task <iid>`
+/// as if the user had typed it, leaving the CLI to expand the command.
 ///
 /// Mirrors `SessionEntryResumeCoordinator`: the sidebar views take a plain
 /// closure, and the container that owns the `TabManager` binds it here.
