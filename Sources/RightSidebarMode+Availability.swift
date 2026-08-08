@@ -58,6 +58,10 @@ extension RightSidebarMode {
             return false
         case .sessions, .gitlab, .gitStatus, .autoTasks:
             return true
+        case .autoTaskConfig:
+            // Pane-only: a wide editor has no business in a narrow sidebar,
+            // so it never appears in the picker but still opens as a tab.
+            return false
         case .feed:
             return feedEnabled
         case .dock:

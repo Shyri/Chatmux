@@ -84,9 +84,25 @@ final class RightSidebarToolPanel: Panel, ObservableObject {
         case .sessions:
             guard let store = sessionIndexStoreStorage else { return }
             syncSessionIndexRoot(from: workspace, store: store)
-        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
+        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .autoTaskConfig, .customSidebar:
             break
         }
+    }
+
+    /// Open the auto-task config editor as a tab in this panel's workspace.
+    /// `openOrFocus` rather than `new`, so pressing the button twice focuses
+    /// the editor instead of stacking a second copy of it.
+    func openAutoTaskConfigPane() {
+        guard let workspace,
+              let paneId = workspace.bonsplitController.focusedPaneId
+                ?? workspace.bonsplitController.allPaneIds.first else {
+            return
+        }
+        _ = workspace.openOrFocusRightSidebarToolSurface(
+            inPane: paneId,
+            mode: .autoTaskConfig,
+            focus: true
+        )
     }
 
     func openFilePreview(_ filePath: String) {
@@ -142,7 +158,7 @@ final class RightSidebarToolPanel: Panel, ObservableObject {
             guard let anchor = sessionIndexFocusAnchorView,
                   let window = anchor.window else { return }
             _ = window.makeFirstResponder(anchor)
-        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
+        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .autoTaskConfig, .customSidebar:
             break
         }
     }
@@ -164,7 +180,7 @@ final class RightSidebarToolPanel: Panel, ObservableObject {
         case .sessions:
             guard sessionIndexFocusAnchorView?.ownsKeyboardFocus(responder) == true else { return nil }
             return .panel
-        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
+        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .autoTaskConfig, .customSidebar:
             return nil
         }
     }
@@ -314,11 +330,15 @@ struct RightSidebarToolPanelView: View {
             AutoTaskListView(
                 store: .shared,
                 actions: AutoTaskPanelActions.make(tabManager: tabManager),
-                onOpenConfig: {
-                    guard let workspace = panel.attachedWorkspace else { return }
-                    panel.openFilePreview(AutoTaskConfigPath.path(inRepository: workspace.currentDirectory))
-                }
+                onOpenConfig: { panel.openAutoTaskConfigPane() }
             )
+        case .autoTaskConfig:
+            if let workspace = panel.attachedWorkspace {
+                AutoTaskConfigView(repositoryPath: workspace.currentDirectory)
+                    .id(workspace.currentDirectory)
+            } else {
+                EmptyView()
+            }
         case .feed, .dock, .customSidebar:
             EmptyView()
         }

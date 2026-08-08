@@ -152,6 +152,8 @@ extension ContentView {
             return "palette.showRightSidebarGitStatus"
         case .autoTasks:
             return "palette.showRightSidebarAutoTasks"
+        case .autoTaskConfig:
+            return "palette.showRightSidebarAutoTaskConfig"
         case .customSidebar:
             return "palette.showRightSidebarCustomSidebar"
         }
@@ -181,6 +183,8 @@ extension ContentView {
             return "palette.openGitStatusPane"
         case .autoTasks:
             return "palette.openAutoTasksPane"
+        case .autoTaskConfig:
+            return "palette.openAutoTaskConfigPane"
         case .feed, .dock, .customSidebar:
             return nil
         }
@@ -200,6 +204,8 @@ extension ContentView {
             return String(localized: "command.openGitStatusPane.title", defaultValue: "Open Changes as Pane")
         case .autoTasks:
             return String(localized: "command.openAutoTasksPane.title", defaultValue: "Open Auto-Tasks as Pane")
+        case .autoTaskConfig:
+            return String(localized: "command.openAutoTaskConfigPane.title", defaultValue: "Open Auto-Task Config")
         case .feed, .dock, .customSidebar:
             return nil
         }

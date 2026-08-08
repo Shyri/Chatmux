@@ -27,6 +27,7 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
     case dock
     case sessions
     case autoTasks = "auto-tasks"
+    case autoTaskConfig = "auto-task-config"
     case customSidebar = "custom-sidebar"
 
     var label: String {
@@ -39,6 +40,7 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
         case .gitlab: return String(localized: "rightSidebar.mode.gitlab", defaultValue: "GitLab")
         case .gitStatus: return String(localized: "rightSidebar.mode.gitStatus", defaultValue: "Changes")
         case .autoTasks: return String(localized: "rightSidebar.mode.autoTasks", defaultValue: "Auto-Tasks")
+        case .autoTaskConfig: return String(localized: "rightSidebar.mode.autoTaskConfig", defaultValue: "Auto-Task Config")
         case .customSidebar: return String(localized: "rightSidebar.mode.customSidebar", defaultValue: "Custom")
         }
     }
@@ -53,6 +55,7 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
         case .gitlab: return "arrow.triangle.merge"
         case .gitStatus: return "checklist"
         case .autoTasks: return "clock.badge.checkmark"
+        case .autoTaskConfig: return "slider.horizontal.3"
         case .customSidebar: return "wand.and.stars"
         }
     }
@@ -67,13 +70,16 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
         case .gitlab: return .switchRightSidebarToGitlab
         case .gitStatus: return nil
         case .autoTasks: return nil
+        case .autoTaskConfig: return nil
         case .customSidebar: return nil
         }
     }
 }
 
 extension RightSidebarMode {
-    static let paneModes: [RightSidebarMode] = [.files, .find, .sessions, .gitlab, .gitStatus, .autoTasks]
+    // `autoTaskConfig` is pane-only: it is a wide editor, not a sidebar
+    // view, so it is absent from `availableModes` but present here.
+    static let paneModes: [RightSidebarMode] = [.files, .find, .sessions, .gitlab, .gitStatus, .autoTasks, .autoTaskConfig]
 
     var canOpenAsPane: Bool {
         Self.paneModes.contains(self)
@@ -92,7 +98,7 @@ enum FileExplorerRootSyncPolicy {
         switch mode {
         case .files, .find:
             return true
-        case .sessions, .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
+        case .sessions, .feed, .dock, .gitlab, .gitStatus, .autoTasks, .autoTaskConfig, .customSidebar:
             return false
         }
     }
@@ -453,11 +459,15 @@ struct RightSidebarPanelView: View {
                 AutoTaskListView(
                     store: .shared,
                     actions: AutoTaskPanelActions.make(tabManager: tabManager),
-                    onOpenConfig: {
-                        guard let ws = workspace else { return }
-                        onOpenFilePreview(AutoTaskConfigPath.path(inRepository: ws.currentDirectory))
-                    }
+                    onOpenConfig: { onOpenAsPane(.autoTaskConfig) }
                 )
+            case .autoTaskConfig:
+                if let ws = workspace {
+                    AutoTaskConfigView(repositoryPath: ws.currentDirectory)
+                        .id(ws.currentDirectory)
+                } else {
+                    Color.clear
+                }
             case .customSidebar:
                 EmptyView()
             }

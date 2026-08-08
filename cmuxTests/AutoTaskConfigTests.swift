@@ -188,3 +188,204 @@ import Testing
                 == ["VERIFY_CMD", "FORBIDDEN_PATHS", "MAX_FILES", "VERIFY_TIMEOUT"])
     }
 }
+
+/// Chatmux-only: validation and advice for `auto-task.conf`.
+///
+/// The split matters: errors block saving, warnings never do. A warning is a
+/// judgement call about someone else's project, and this code does not get to
+/// veto it.
+@Suite struct AutoTaskConfigDiagnosticsTests {
+    private func config(_ text: String) -> AutoTaskConfigFile { AutoTaskConfigFile(text: text) }
+
+    private var valid: String {
+        """
+        VERIFY_CMD="./gradlew test assembleDebug"
+        FORBIDDEN_PATHS=".gitlab-ci.yml,.github/,.octo-dev/"
+        MAX_FILES=25
+        VERIFY_TIMEOUT=1800
+        """
+    }
+
+    // MARK: - errors
+
+    @Test func validConfigHasNoErrors() {
+        #expect(AutoTaskConfigDiagnostics.errors(in: config(valid)).isEmpty)
+    }
+
+    /// Without it nothing decides whether the run's work is valid — the worst
+    /// possible failure of the system, per the briefing.
+    @Test func emptyVerifyCommandIsAnError() {
+        let found = AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=\"\"\n"))
+        #expect(found.contains { $0.id == "verify.empty" })
+    }
+
+    @Test func maxFilesOutOfRangeIsAnError() {
+        #expect(AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=x\nMAX_FILES=0\n"))
+            .contains { $0.id == "maxFiles.range" })
+        #expect(AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=x\nMAX_FILES=500\n"))
+            .contains { $0.id == "maxFiles.range" })
+        #expect(AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=x\nMAX_FILES=25\n"))
+            .contains { $0.id.hasPrefix("maxFiles") } == false)
+    }
+
+    @Test func nonNumericLimitsAreErrors() {
+        #expect(AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=x\nMAX_FILES=lots\n"))
+            .contains { $0.id == "maxFiles.notANumber" })
+        #expect(AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=x\nVERIFY_TIMEOUT=soon\n"))
+            .contains { $0.id == "timeout.notANumber" })
+    }
+
+    @Test func shortTimeoutIsAnError() {
+        #expect(AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=x\nVERIFY_TIMEOUT=30\n"))
+            .contains { $0.id == "timeout.range" })
+    }
+
+    @Test func duplicatePatternsAreAnError() {
+        #expect(AutoTaskConfigDiagnostics.errors(in: config("VERIFY_CMD=x\nFORBIDDEN_PATHS=\"a/,b,a/\"\n"))
+            .contains { $0.id == "forbidden.duplicates" })
+    }
+
+    // MARK: - warnings
+
+    private func warnings(
+        _ text: String,
+        stack: AutoTaskConfigTemplate.Stack = .androidNative,
+        hasMRCreate: Bool = true
+    ) -> [String] {
+        AutoTaskConfigDiagnostics
+            .warnings(in: config(text), stack: stack, hasMRCreateFile: hasMRCreate)
+            .map(\.id)
+    }
+
+    /// The single most useful thing this screen can say: without the file the
+    /// run aborts in its first second.
+    @Test func missingMRCreateFileWarns() {
+        #expect(warnings(valid, hasMRCreate: false).contains("mrCreate.missing"))
+        #expect(warnings(valid, hasMRCreate: true).contains("mrCreate.missing") == false)
+    }
+
+    @Test func unprotectedCIWarns() {
+        #expect(warnings("VERIFY_CMD=x\nFORBIDDEN_PATHS=\".octo-dev/\"\n").contains("forbidden.noCI"))
+        #expect(warnings(valid).contains("forbidden.noCI") == false)
+    }
+
+    @Test func unprotectedOwnConfigWarns() {
+        #expect(warnings("VERIFY_CMD=x\nFORBIDDEN_PATHS=\".github/\"\n").contains("forbidden.noOctoDev"))
+    }
+
+    /// The glob hole the templates work around: `*/x` leaves a root-level `x`
+    /// editable.
+    @Test func starSlashPatternWithoutItsRootFormWarns() {
+        let ids = warnings("VERIFY_CMD=x\nFORBIDDEN_PATHS=\".gitlab-ci.yml,.octo-dev/,*/build.gradle\"\n")
+        #expect(ids.contains("forbidden.missingRoot.*/build.gradle"))
+
+        let both = warnings("VERIFY_CMD=x\nFORBIDDEN_PATHS=\".gitlab-ci.yml,.octo-dev/,*/build.gradle,build.gradle\"\n")
+        #expect(both.contains { $0.hasPrefix("forbidden.missingRoot") } == false)
+    }
+
+    @Test func testsOnlyVerifyWarnsOnMobileOnly() {
+        let mobile = warnings("VERIFY_CMD=\"./gradlew test\"\n", stack: .androidNative)
+        #expect(mobile.contains("verify.testsOnly"))
+
+        let assembling = warnings("VERIFY_CMD=\"./gradlew test assembleDebug\"\n", stack: .androidNative)
+        #expect(assembling.contains("verify.testsOnly") == false)
+
+        let backend = warnings("VERIFY_CMD=\"cargo test\"\n", stack: .rust)
+        #expect(backend.contains("verify.testsOnly") == false)
+    }
+
+    /// It runs unattended on other people's machines, so it is worth saying out
+    /// loud — but it is still only a warning.
+    @Test func destructiveVerifyCommandWarns() {
+        #expect(warnings("VERIFY_CMD=\"rm -rf build && make\"\n").contains("verify.destructive"))
+        #expect(warnings("VERIFY_CMD=\"git push origin main\"\n").contains("verify.destructive"))
+        #expect(warnings(valid).contains("verify.destructive") == false)
+    }
+
+    @Test func warningsNeverBlockSaving() {
+        // A config with every warning firing still has no errors.
+        let text = "VERIFY_CMD=\"./gradlew test\"\nFORBIDDEN_PATHS=\"*/build.gradle\"\nMAX_FILES=25\nVERIFY_TIMEOUT=1800\n"
+        #expect(AutoTaskConfigDiagnostics.errors(in: config(text)).isEmpty)
+        #expect(warnings(text, hasMRCreate: false).count >= 3)
+    }
+}
+
+/// Chatmux-only: stack detection and the starter templates.
+///
+/// The values are octo-dev's, copied verbatim — a FORBIDDEN_PATHS that diverges
+/// from what the toolkit expects leaves real files unprotected.
+@Suite struct AutoTaskConfigTemplateTests {
+    private func withRepository(_ files: [String], _ body: (String) throws -> Void) throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("AutoTaskTemplateTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for file in files {
+            let url = root.appendingPathComponent(file)
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try "".write(to: url, atomically: true, encoding: .utf8)
+        }
+        try body(root.path)
+    }
+
+    @Test func detectsCommonStacks() throws {
+        try withRepository(["gradlew"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .androidNative) }
+        try withRepository(["Cargo.toml"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .rust) }
+        try withRepository(["go.mod"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .go) }
+        try withRepository(["package.json"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .nodeJS) }
+        try withRepository(["pyproject.toml"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .python) }
+        try withRepository(["README.md"]) { #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .unknown) }
+    }
+
+    /// A Flutter repository contains an Android project too, so order matters.
+    @Test func flutterWinsOverTheAndroidProjectInsideIt() throws {
+        try withRepository(["pubspec.yaml", "android/gradlew"]) {
+            #expect(AutoTaskConfigTemplate.detectStack(inRepository: $0) == .flutter)
+        }
+    }
+
+    @Test func everyTemplateProtectsCIAndItsOwnConfig() {
+        for stack in AutoTaskConfigTemplate.Stack.allCases {
+            let patterns = ForbiddenPathMatcher.patterns(from: AutoTaskConfigTemplate.forbiddenPaths(for: stack))
+            #expect(patterns.contains(".gitlab-ci.yml"), "\(stack.rawValue) leaves GitLab CI unprotected")
+            #expect(patterns.contains(".github/"), "\(stack.rawValue) leaves GitHub Actions unprotected")
+            #expect(patterns.contains(".octo-dev/"), "\(stack.rawValue) lets a run rewrite its own rules")
+        }
+    }
+
+    /// The Android template ships both `*/build.gradle` and `build.gradle`
+    /// precisely because the first does not cover a root-level file.
+    @Test func androidTemplateCoversBothGradleForms() {
+        let patterns = ForbiddenPathMatcher.patterns(
+            from: AutoTaskConfigTemplate.forbiddenPaths(for: .androidNative)
+        )
+        #expect(ForbiddenPathMatcher.isBlocked(path: "app/build.gradle", patterns: patterns))
+        #expect(ForbiddenPathMatcher.isBlocked(path: "build.gradle", patterns: patterns))
+        #expect(ForbiddenPathMatcher.isBlocked(path: "release.keystore", patterns: patterns))
+    }
+
+    /// A generated file has to parse back into the same values.
+    @Test func starterFileRoundTrips() {
+        for stack in AutoTaskConfigTemplate.Stack.allCases {
+            let text = AutoTaskConfigTemplate.starterFile(for: stack)
+            let parsed = AutoTaskConfigFile(text: text)
+            #expect(parsed.serialized() == text, "\(stack.rawValue) does not round-trip")
+            #expect(parsed.intValue(for: .maxFiles) == 25)
+            #expect(parsed.intValue(for: .verifyTimeout) == 1800)
+            #expect(parsed.value(for: .verifyCommand) == AutoTaskConfigTemplate.verifyCommand(for: stack))
+        }
+    }
+
+    /// Generated files must be valid by construction — except the unknown
+    /// stack, which deliberately leaves VERIFY_CMD empty for a human.
+    @Test func generatedFilesValidateCleanly() {
+        for stack in AutoTaskConfigTemplate.Stack.allCases where stack != .unknown {
+            let parsed = AutoTaskConfigFile(text: AutoTaskConfigTemplate.starterFile(for: stack))
+            #expect(AutoTaskConfigDiagnostics.errors(in: parsed).isEmpty, "\(stack.rawValue) generates an invalid file")
+        }
+        let unknown = AutoTaskConfigFile(text: AutoTaskConfigTemplate.starterFile(for: .unknown))
+        #expect(AutoTaskConfigDiagnostics.errors(in: unknown).contains { $0.id == "verify.empty" })
+    }
+}
