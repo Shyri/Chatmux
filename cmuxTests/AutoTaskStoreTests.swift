@@ -191,6 +191,70 @@ import Testing
         }
     }
 
+    // MARK: - marking issues in the GitLab list
+    //
+    // Purely local: the badge reflects this machine's queue and nothing is ever
+    // written to GitLab.
+
+    @Test func outstandingIsKeyedByIssueForTheRightRepository() throws {
+        try withStore { store, _ in
+            store.add(task(iid: 1))
+            store.add(ScheduledAutoTask(
+                issueIID: 2, issueTitle: "other repo",
+                repositoryPath: "/tmp/elsewhere",
+                scheduledAt: Date(timeIntervalSince1970: 1_800_000_000)
+            ))
+            let found = store.outstandingByIssue(repositoryPath: "/tmp/project")
+            #expect(Set(found.keys) == [1])
+        }
+    }
+
+    /// A launched or cancelled task is history. Marking the issue "scheduled"
+    /// for one of those would be false.
+    @Test func settledTasksDoNotMarkTheIssue() throws {
+        try withStore { store, _ in
+            let t = task(iid: 7)
+            store.add(t)
+            #expect(store.outstandingByIssue(repositoryPath: "/tmp/project").keys.contains(7))
+
+            _ = store.claimForLaunch(id: t.id)
+            #expect(store.outstandingByIssue(repositoryPath: "/tmp/project").isEmpty)
+        }
+    }
+
+    /// A missed one still marks it — it is a schedule that never ran, and
+    /// hiding it would be worse than showing it.
+    @Test func missedTasksStillMarkTheIssue() throws {
+        try withStore { store, _ in
+            store.add(task(iid: 9, state: .missed))
+            let found = store.outstandingByIssue(repositoryPath: "/tmp/project")
+            #expect(found[9]?.state == .missed)
+        }
+    }
+
+    @Test func theSoonestTaskWinsForOneIssue() throws {
+        try withStore { store, _ in
+            let early = Date(timeIntervalSince1970: 1_800_000_000)
+            store.add(task(iid: 5, at: early.addingTimeInterval(7200)))
+            store.add(task(iid: 5, at: early))
+            #expect(store.outstandingByIssue(repositoryPath: "/tmp/project")[5]?.scheduledAt == early)
+        }
+    }
+
+    /// The workspace may report a path through a symlink while the task was
+    /// scheduled from the resolved one, or vice versa.
+    @Test func repositoryPathsAreComparedResolved() throws {
+        try withStore { store, _ in
+            store.add(ScheduledAutoTask(
+                issueIID: 3, issueTitle: "t",
+                repositoryPath: "/tmp/project/",
+                scheduledAt: Date(timeIntervalSince1970: 1_800_000_000)
+            ))
+            #expect(store.outstandingByIssue(repositoryPath: "/tmp/project").keys.contains(3),
+                    "a trailing slash must not hide the badge")
+        }
+    }
+
     // MARK: - overdue policy
 
     @Test func markOverdueMovesOnlyPastPendingTasks() throws {

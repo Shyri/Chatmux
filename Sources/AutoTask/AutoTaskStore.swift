@@ -165,6 +165,43 @@ final class AutoTaskStore: ObservableObject {
         }
     }
 
+    /// What the GitLab issue list needs to mark an issue: for each issue number
+    /// in this repository, the outstanding auto-task, if any.
+    ///
+    /// Purely local — nothing is written to GitLab. Computed here, above the
+    /// row list, so the rows themselves receive plain values and never reach
+    /// into this store (the `LazyVStack` snapshot boundary).
+    ///
+    /// Only tasks that still owe a run are reported. A launched or cancelled
+    /// one is history, and marking an issue "scheduled" for it would be a lie.
+    /// When an issue has several, the soonest wins.
+    func outstandingByIssue(repositoryPath: String) -> [Int: ScheduledAutoTask] {
+        let target = Self.comparablePath(repositoryPath)
+        guard !target.isEmpty else { return [:] }
+        var out: [Int: ScheduledAutoTask] = [:]
+        for task in tasks {
+            switch task.state {
+            case .pending, .missed: break
+            case .launched, .cancelled, .failed: continue
+            }
+            guard Self.comparablePath(task.repositoryPath) == target else { continue }
+            if let existing = out[task.issueIID], existing.scheduledAt <= task.scheduledAt { continue }
+            out[task.issueIID] = task
+        }
+        return out
+    }
+
+    /// Paths are compared standardized and symlink-resolved: a task scheduled
+    /// from `/tmp/x` must still mark the issue when the workspace reports
+    /// `/private/tmp/x`.
+    private static func comparablePath(_ path: String) -> String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        let resolved = URL(fileURLWithPath: trimmed).standardizedFileURL.resolvingSymlinksInPath().path
+        if resolved.count > 1, resolved.hasSuffix("/") { return String(resolved.dropLast()) }
+        return resolved
+    }
+
     /// The soonest pending task, which is what the scheduler arms its timer to.
     /// Loop rather than `filter`/`min` for the same type-checker reason as
     /// `AutoTaskScheduler.dueTasks`.

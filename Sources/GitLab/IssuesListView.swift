@@ -305,6 +305,9 @@ struct IssuesListView: View {
     var onScheduleAutoTask: ((Int, String, Date) -> Void)? = nil
     @StateObject private var state = IssuesState()
     @ObservedObject private var filtersStore = GitLabIssueFiltersStore.shared
+    /// Observed here, above the row list, so rows receive a plain value and
+    /// never hold the store — the `LazyVStack` snapshot boundary.
+    @ObservedObject private var autoTaskStore = AutoTaskStore.shared
     @State private var milestoneFilter: String = ""  // "" = all, kNoMilestoneSentinel = no milestone, else milestone title
     @State private var assigneeFilter: String = ""  // "" = all, kNoAssigneeSentinel = unassigned, else username
     /// Whether a `/start-task` command file is reachable from this
@@ -747,11 +750,13 @@ struct IssuesListView: View {
             projectMembers: state.projectMembers,
             visibleCandidates: visibleCandidates
         )
+        let scheduled = autoTaskStore.outstandingByIssue(repositoryPath: directory)
         return ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(filteredIssues) { issue in
                     IssueCardView(
                         issue: issue,
+                        schedule: scheduled[issue.iid].map(AutoTaskIssueBadge.init(task:)),
                         assigneeMenu: menuContext,
                         onSelectAssignee: { assignee in
                             state.setAssignee(
@@ -873,8 +878,23 @@ struct IssueAssigneeMenuContext: Equatable {
 
 // MARK: - Issue Card
 
+/// Immutable snapshot of an issue's outstanding auto-task, for the row badge.
+/// A value, not the task and not the store.
+struct AutoTaskIssueBadge: Equatable {
+    let scheduledAt: Date
+    let isMissed: Bool
+
+    init(task: ScheduledAutoTask) {
+        scheduledAt = task.scheduledAt
+        isMissed = task.state == .missed
+    }
+}
+
 private struct IssueCardView: View {
     let issue: GitLabIssue
+    /// Non-nil when Chatmux has an auto-task queued for this issue. Local
+    /// only — nothing about this is ever sent to GitLab.
+    let schedule: AutoTaskIssueBadge?
     let assigneeMenu: IssueAssigneeMenuContext
     let onSelectAssignee: (GitLabAssignee?) -> Void
     /// Non-nil only when a `/start-task` command is actually available from
@@ -1058,6 +1078,52 @@ private struct IssueCardView: View {
         return "\(assignee.name) (@\(assignee.username))"
     }
 
+    /// Marks an issue that has an auto-task waiting in Chatmux.
+    ///
+    /// Local only: nothing is written to GitLab, no label is applied, and
+    /// nobody else on the team sees it. It reflects this machine's queue.
+    private func scheduleBadge(_ schedule: AutoTaskIssueBadge) -> some View {
+        let tint: Color = schedule.isMissed ? .orange : Color.accentColor
+        return HStack(spacing: 3) {
+            Image(systemName: schedule.isMissed ? "clock.badge.exclamationmark" : "clock")
+                .font(.system(size: 9, weight: .semibold))
+            Text(Self.badgeLabel(schedule))
+                .font(.system(size: 9, weight: .semibold))
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 1)
+        .background(Capsule().fill(tint.opacity(0.15)))
+        .overlay(Capsule().strokeBorder(tint.opacity(0.35), lineWidth: 0.5))
+        .help(
+            schedule.isMissed
+                ? String(
+                    localized: "issue.card.autoTask.missedTooltip",
+                    defaultValue: "This auto-task's time passed while Chatmux was closed. Local only — nothing was sent to GitLab."
+                )
+                : String(
+                    localized: "issue.card.autoTask.scheduledTooltip",
+                    defaultValue: "An auto-task is scheduled for this issue in Chatmux. Local only — nothing is sent to GitLab."
+                )
+        )
+    }
+
+    private static func badgeLabel(_ schedule: AutoTaskIssueBadge) -> String {
+        if schedule.isMissed {
+            return String(localized: "issue.card.autoTask.missed", defaultValue: "missed")
+        }
+        let formatter = DateFormatter()
+        // Day + time when it is not today, time alone when it is: a queue is
+        // usually "tonight", and the date would be noise on a narrow row.
+        if Calendar.current.isDateInToday(schedule.scheduledAt) {
+            formatter.dateStyle = .none
+            formatter.timeStyle = .short
+        } else {
+            formatter.setLocalizedDateFormatFromTemplate("EEEHm")
+        }
+        return formatter.string(from: schedule.scheduledAt)
+    }
+
     private var topRow: some View {
         HStack(alignment: .center, spacing: 6) {
             stateIcon
@@ -1065,6 +1131,9 @@ private struct IssueCardView: View {
             Text("#\(issue.iid)")
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundStyle(.secondary)
+            if let schedule {
+                scheduleBadge(schedule)
+            }
             if issue.userNotesCount > 0 {
                 HStack(spacing: 3) {
                     Image(systemName: "bubble.left.fill")
