@@ -33,6 +33,9 @@ enum GitLabSidebarTab: String, CaseIterable, Identifiable {
 
 struct GitLabSidebarView: View {
     @ObservedObject var workspace: Workspace
+    /// Start `/start-task <iid>` for an issue in a new chat tab. Supplied by
+    /// the container that owns the `TabManager`.
+    var onStartTask: ((Int) -> Void)? = nil
     @State private var selectedTab: GitLabSidebarTab = .mergeRequests
 
     var body: some View {
@@ -144,10 +147,33 @@ struct GitLabSidebarView: View {
         case .pipelines:
             PipelinesListView(workspace: workspace)
         case .issues:
-            IssuesListView(workspace: workspace)
+            IssuesListView(workspace: workspace, onStartTask: onStartTask)
         case .releases:
             ReleasesListView(workspace: workspace)
         }
+    }
+}
+
+/// Bridges "start this issue" from the GitLab sidebar into the chat: opens a
+/// new Claude Chat tab in the selected workspace and runs `/start-task <iid>`
+/// in it, expanding the command's markdown body the same way the composer
+/// does.
+///
+/// Mirrors `SessionEntryResumeCoordinator`: the sidebar views take a plain
+/// closure, and the container that owns the `TabManager` binds it here.
+enum GitLabIssueStartTaskCoordinator {
+    /// The `/`-less name of the markdown command invoked for an issue.
+    static let commandName = "start-task"
+
+    @MainActor
+    static func startTask(issueIID: Int, workspace: Workspace, tabManager: TabManager) {
+        let directory = workspace.currentDirectory
+        ChatSlashCommandLauncher.openChat(
+            running: commandName,
+            arguments: String(issueIID),
+            workingDirectory: directory.isEmpty ? nil : directory,
+            tabManager: tabManager
+        )
     }
 }
 

@@ -4126,6 +4126,21 @@ class TabManager: ObservableObject {
         resumingSessionId: String? = nil,
         workingDirectory: String? = nil
     ) -> UUID? {
+        openClaudeChatPanel(
+            resumingSessionId: resumingSessionId,
+            workingDirectory: workingDirectory
+        )?.id
+    }
+
+    /// Same as ``openClaudeChat(resumingSessionId:workingDirectory:)`` but
+    /// hands back the panel itself, for callers that need to drive it right
+    /// after creation (e.g. running a slash command in a freshly opened
+    /// chat).
+    @discardableResult
+    func openClaudeChatPanel(
+        resumingSessionId: String? = nil,
+        workingDirectory: String? = nil
+    ) -> ClaudeChatPanel? {
         guard let workspace = selectedWorkspace else { return nil }
         if selectedTabId != workspace.id {
             selectedTabId = workspace.id
@@ -4158,7 +4173,7 @@ class TabManager: ObservableObject {
             return nil
         }
         rememberFocusedSurface(tabId: workspace.id, surfaceId: chatPanel.id)
-        return chatPanel.id
+        return chatPanel
     }
 
     /// Reopen the most recently closed browser panel (Cmd+Shift+T).

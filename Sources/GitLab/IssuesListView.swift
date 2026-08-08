@@ -295,10 +295,18 @@ final class IssuesState: ObservableObject {
 
 struct IssuesListView: View {
     @ObservedObject var workspace: Workspace
+    /// Start `/start-task <iid>` in a new chat tab. Injected by the container
+    /// that owns the `TabManager`; `nil` where no chat can be opened.
+    var onStartTask: ((Int) -> Void)? = nil
     @StateObject private var state = IssuesState()
     @ObservedObject private var filtersStore = GitLabIssueFiltersStore.shared
     @State private var milestoneFilter: String = ""  // "" = all, kNoMilestoneSentinel = no milestone, else milestone title
     @State private var assigneeFilter: String = ""  // "" = all, kNoAssigneeSentinel = unassigned, else username
+    /// Whether a `/start-task` command file is reachable from this
+    /// workspace. Resolved once per directory rather than per row: it is a
+    /// filesystem scan, and the rows below the `LazyVStack` boundary must
+    /// receive plain values.
+    @State private var startTaskAvailable = false
 
     private var hasMilestoneOptions: Bool {
         !availableMilestones.isEmpty || state.issues.contains(where: { $0.milestone == nil })
@@ -329,13 +337,16 @@ struct IssuesListView: View {
         .onAppear {
             loadPersistedFilters()
             refreshIfNeeded()
+            refreshStartTaskAvailability()
         }
         .onChange(of: workspace.id) { _ in
             loadPersistedFilters()
             refreshIfNeeded()
+            refreshStartTaskAvailability()
         }
         .onChange(of: workspace.currentDirectory) { _ in
             refreshIfNeeded()
+            refreshStartTaskAvailability()
         }
         .onChange(of: milestoneFilter) { newValue in
             filtersStore.setMilestoneFilter(newValue, for: workspace.id)
@@ -742,7 +753,10 @@ struct IssuesListView: View {
                                 to: assignee,
                                 directory: directory
                             )
-                        }
+                        },
+                        onStartTask: startTaskAvailable
+                            ? { onStartTask?(issue.iid) }
+                            : nil
                     )
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -773,6 +787,21 @@ struct IssuesListView: View {
         let dir = workspace.currentDirectory
         guard !dir.isEmpty else { return }
         state.refresh(directory: dir)
+    }
+
+    /// `/start-task` is a user- or project-level markdown command, so its
+    /// presence is a property of the checkout, not of cmux. Re-resolved
+    /// whenever the workspace directory changes.
+    private func refreshStartTaskAvailability() {
+        let dir = workspace.currentDirectory
+        let available = onStartTask != nil
+            && SlashCommandRegistry.command(
+                named: GitLabIssueStartTaskCoordinator.commandName,
+                cwd: dir.isEmpty ? nil : dir
+            ) != nil
+        if startTaskAvailable != available {
+            startTaskAvailable = available
+        }
     }
 
     /// Derives the project's issue-board URL, preferring the cached project
@@ -834,6 +863,10 @@ private struct IssueCardView: View {
     let issue: GitLabIssue
     let assigneeMenu: IssueAssigneeMenuContext
     let onSelectAssignee: (GitLabAssignee?) -> Void
+    /// Non-nil only when a `/start-task` command is actually available from
+    /// the workspace — offering a menu item that resolves to nothing would
+    /// be worse than not offering it.
+    let onStartTask: (() -> Void)?
     @State private var isHovered = false
     @Environment(\.gitlabLabelsByName) private var labelsByName
 
@@ -875,6 +908,15 @@ private struct IssueCardView: View {
             NSWorkspace.shared.open(url)
         }
         .contextMenu {
+            if let onStartTask {
+                Button(action: onStartTask) {
+                    Label(
+                        String(localized: "issue.card.startTask", defaultValue: "Start Task"),
+                        systemImage: "play.circle"
+                    )
+                }
+                Divider()
+            }
             Button {
                 guard let url = URL(string: issue.webURL) else { return }
                 NSWorkspace.shared.open(url)
