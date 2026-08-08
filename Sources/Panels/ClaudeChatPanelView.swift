@@ -280,6 +280,25 @@ struct ChatDropContainer<Content: View>: NSViewRepresentable {
 
         let host = NSHostingView(rootView: AnyView(content))
         host.translatesAutoresizingMaskIntoConstraints = false
+        // The host is pinned to all four edges below, so its size comes from
+        // this container and never from its content. Left at the default, it
+        // still keeps an `intrinsicContentSize` in sync with the SwiftUI tree,
+        // which means every update invalidates constraints and tells the window
+        // about it — scheduling another display cycle, which fires the lazy
+        // list's prefetch again, which requests another update.
+        //
+        // That is not hypothetical. Captured live at 92% CPU, this exact chain
+        // was 55% of the main thread:
+        //
+        //   Update.dispatchActions
+        //     └ LazyLayoutViewCache.signalPrefetch
+        //        └ NSHostingView.requestUpdate → setNeedsUpdate
+        //           └ setNeedsUpdateConstraints
+        //              └ _postWindowNeedsUpdateConstraints  (53%)
+        //
+        // With no sizing options the host stops generating constraints from its
+        // content, and the loop has nothing to re-enter through.
+        host.sizingOptions = []
         view.addSubview(host)
         NSLayoutConstraint.activate([
             host.leadingAnchor.constraint(equalTo: view.leadingAnchor),
