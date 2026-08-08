@@ -84,7 +84,7 @@ final class RightSidebarToolPanel: Panel, ObservableObject {
         case .sessions:
             guard let store = sessionIndexStoreStorage else { return }
             syncSessionIndexRoot(from: workspace, store: store)
-        case .feed, .dock, .gitlab, .gitStatus, .customSidebar:
+        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
             break
         }
     }
@@ -142,7 +142,7 @@ final class RightSidebarToolPanel: Panel, ObservableObject {
             guard let anchor = sessionIndexFocusAnchorView,
                   let window = anchor.window else { return }
             _ = window.makeFirstResponder(anchor)
-        case .feed, .dock, .gitlab, .gitStatus, .customSidebar:
+        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
             break
         }
     }
@@ -164,7 +164,7 @@ final class RightSidebarToolPanel: Panel, ObservableObject {
         case .sessions:
             guard sessionIndexFocusAnchorView?.ownsKeyboardFocus(responder) == true else { return nil }
             return .panel
-        case .feed, .dock, .gitlab, .gitStatus, .customSidebar:
+        case .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
             return nil
         }
     }
@@ -310,6 +310,15 @@ struct RightSidebarToolPanelView: View {
             } else {
                 EmptyView()
             }
+        case .autoTasks:
+            AutoTaskListView(
+                store: .shared,
+                actions: AutoTaskPanelActions.make(tabManager: tabManager),
+                onOpenConfig: {
+                    guard let workspace = panel.attachedWorkspace else { return }
+                    panel.openFilePreview(AutoTaskConfigPath.path(inRepository: workspace.currentDirectory))
+                }
+            )
         case .feed, .dock, .customSidebar:
             EmptyView()
         }

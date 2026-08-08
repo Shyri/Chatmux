@@ -26,6 +26,7 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
     case feed
     case dock
     case sessions
+    case autoTasks = "auto-tasks"
     case customSidebar = "custom-sidebar"
 
     var label: String {
@@ -37,6 +38,7 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
         case .dock: return String(localized: "rightSidebar.mode.dock", defaultValue: "Dock")
         case .gitlab: return String(localized: "rightSidebar.mode.gitlab", defaultValue: "GitLab")
         case .gitStatus: return String(localized: "rightSidebar.mode.gitStatus", defaultValue: "Changes")
+        case .autoTasks: return String(localized: "rightSidebar.mode.autoTasks", defaultValue: "Auto-Tasks")
         case .customSidebar: return String(localized: "rightSidebar.mode.customSidebar", defaultValue: "Custom")
         }
     }
@@ -50,6 +52,7 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
         case .dock: return "dock.rectangle"
         case .gitlab: return "arrow.triangle.merge"
         case .gitStatus: return "checklist"
+        case .autoTasks: return "clock.badge.checkmark"
         case .customSidebar: return "wand.and.stars"
         }
     }
@@ -63,13 +66,14 @@ enum RightSidebarMode: String, CaseIterable, Codable, Sendable {
         case .dock: return .switchRightSidebarToDock
         case .gitlab: return .switchRightSidebarToGitlab
         case .gitStatus: return nil
+        case .autoTasks: return nil
         case .customSidebar: return nil
         }
     }
 }
 
 extension RightSidebarMode {
-    static let paneModes: [RightSidebarMode] = [.files, .find, .sessions, .gitlab, .gitStatus]
+    static let paneModes: [RightSidebarMode] = [.files, .find, .sessions, .gitlab, .gitStatus, .autoTasks]
 
     var canOpenAsPane: Bool {
         Self.paneModes.contains(self)
@@ -88,7 +92,7 @@ enum FileExplorerRootSyncPolicy {
         switch mode {
         case .files, .find:
             return true
-        case .sessions, .feed, .dock, .gitlab, .gitStatus, .customSidebar:
+        case .sessions, .feed, .dock, .gitlab, .gitStatus, .autoTasks, .customSidebar:
             return false
         }
     }
@@ -445,6 +449,15 @@ struct RightSidebarPanelView: View {
                 } else {
                     Color.clear
                 }
+            case .autoTasks:
+                AutoTaskListView(
+                    store: .shared,
+                    actions: AutoTaskPanelActions.make(tabManager: tabManager),
+                    onOpenConfig: {
+                        guard let ws = workspace else { return }
+                        onOpenFilePreview(AutoTaskConfigPath.path(inRepository: ws.currentDirectory))
+                    }
+                )
             case .customSidebar:
                 EmptyView()
             }

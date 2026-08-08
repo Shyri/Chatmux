@@ -18,6 +18,8 @@ extension RightSidebarMode {
             return .gitlab
         case "gitstatus", "git-status", "status", "changes":
             return .gitStatus
+        case "autotasks", "auto-tasks", "autotask", "auto-task":
+            return .autoTasks
         default:
             return nil
         }
@@ -54,7 +56,7 @@ extension RightSidebarMode {
             // `RightSidebarMode.resolvedAvailable` maps them onto a mode that
             // still exists rather than leaving the panel blank.
             return false
-        case .sessions, .gitlab, .gitStatus:
+        case .sessions, .gitlab, .gitStatus, .autoTasks:
             return true
         case .feed:
             return feedEnabled
