@@ -213,6 +213,7 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		A5009B0100000000000000DE /* AutoTaskPanelActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000DD /* AutoTaskPanelActions.swift */; };
 		A5009B0100000000000000DA /* AutoTaskSchedulePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D9 /* AutoTaskSchedulePicker.swift */; };
 		A5009B0100000000000000D6 /* AutoTaskScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D5 /* AutoTaskScheduler.swift */; };
+		A5009B010000000000000106 /* AutoTaskSetupPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B010000000000000105 /* AutoTaskSetupPolicy.swift */; };
 		A5009B0100000000000000D4 /* AutoTaskStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D3 /* AutoTaskStore.swift */; };
 		A5009B0100000000000000E2 /* AutoTaskStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */; };
 		CFB000713000000FORKTEST /* BackgroundShellReconciliationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */; };
@@ -1209,6 +1210,9 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		D77690000000000000000009 /* NotificationsPopoverResizeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7769000000000000000000A /* NotificationsPopoverResizeView.swift */; };
 		D36090020000000000000001 /* NSWindow+CmuxPeerWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D36090020000000000000002 /* NSWindow+CmuxPeerWindow.swift */; };
 		645645000000000000000002 /* NumberedShortcutSwapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 645645000000000000000001 /* NumberedShortcutSwapTests.swift */; };
+		A5009B010000000000000102 /* OctoDevScriptOutput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B010000000000000101 /* OctoDevScriptOutput.swift */; };
+		A5009B010000000000000104 /* OctoDevScriptRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B010000000000000103 /* OctoDevScriptRunner.swift */; };
+		A5009B010000000000000108 /* OctoDevScriptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B010000000000000107 /* OctoDevScriptTests.swift */; };
 		0A1107110000000000000001 /* OllamaAgentDetectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A1107110000000000000002 /* OllamaAgentDetectionTests.swift */; };
 		C67540090000000000000001 /* OmnibarAddressButtonStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C67540090000000000000002 /* OmnibarAddressButtonStyle.swift */; };
 		4378399A7C0245EF8186F306 /* OmnibarAndToolsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B09C007F42697761B5F1A2AB /* OmnibarAndToolsTests.swift */; };
@@ -2405,6 +2409,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		A5009B0100000000000000DD /* AutoTaskPanelActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskPanelActions.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D9 /* AutoTaskSchedulePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskSchedulePicker.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D5 /* AutoTaskScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskScheduler.swift; sourceTree = "<group>"; };
+		A5009B010000000000000105 /* AutoTaskSetupPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskSetupPolicy.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D3 /* AutoTaskStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskStore.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTaskStoreTests.swift; sourceTree = "<group>"; };
 		CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundShellReconciliationTests.swift; sourceTree = "<group>"; };
@@ -3334,6 +3339,9 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		D7769000000000000000000A /* NotificationsPopoverResizeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Update/NotificationsPopoverResizeView.swift; sourceTree = "<group>"; };
 		D36090020000000000000002 /* NSWindow+CmuxPeerWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "App/NSWindow+CmuxPeerWindow.swift"; sourceTree = "<group>"; };
 		645645000000000000000001 /* NumberedShortcutSwapTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberedShortcutSwapTests.swift; sourceTree = "<group>"; };
+		A5009B010000000000000101 /* OctoDevScriptOutput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/OctoDevScriptOutput.swift; sourceTree = "<group>"; };
+		A5009B010000000000000103 /* OctoDevScriptRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/OctoDevScriptRunner.swift; sourceTree = "<group>"; };
+		A5009B010000000000000107 /* OctoDevScriptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OctoDevScriptTests.swift; sourceTree = "<group>"; };
 		0A1107110000000000000002 /* OllamaAgentDetectionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaAgentDetectionTests.swift; sourceTree = "<group>"; };
 		C67540090000000000000002 /* OmnibarAddressButtonStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Panels/OmnibarAddressButtonStyle.swift; sourceTree = "<group>"; };
 		B09C007F42697761B5F1A2AB /* OmnibarAndToolsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OmnibarAndToolsTests.swift; sourceTree = "<group>"; };
@@ -5764,6 +5772,9 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				FE0030A3 /* RightSidebarToolPanel.swift */,
 				A5009B0100000000000000D1 /* ScheduledAutoTask.swift */,
 				A5009B0100000000000000D3 /* AutoTaskStore.swift */,
+				A5009B010000000000000105 /* AutoTaskSetupPolicy.swift */,
+				A5009B010000000000000103 /* OctoDevScriptRunner.swift */,
+				A5009B010000000000000101 /* OctoDevScriptOutput.swift */,
 				A5009B0100000000000000F7 /* AutoTaskConfigView.swift */,
 				A5009B0100000000000000F5 /* AutoTaskConfigEditorModel.swift */,
 				A5009B0100000000000000F3 /* AutoTaskConfigDiagnostics.swift */,
@@ -6020,6 +6031,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				CFB000612000000FORKTEST /* ClaudeSessionHistoryTests.swift */,
 				CFB000714000000FORKTEST /* BackgroundShellReconciliationTests.swift */,
 				A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */,
+				A5009B010000000000000107 /* OctoDevScriptTests.swift */,
 				A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */,
 				CFB000712000000FORKTEST /* SlashCommandRegistryTests.swift */,
 				CFB000812000000FORKTEST /* StatusLineRunnerTests.swift */,
@@ -7161,6 +7173,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5009B0100000000000000DE /* AutoTaskPanelActions.swift in Sources */,
 				A5009B0100000000000000DA /* AutoTaskSchedulePicker.swift in Sources */,
 				A5009B0100000000000000D6 /* AutoTaskScheduler.swift in Sources */,
+				A5009B010000000000000106 /* AutoTaskSetupPolicy.swift in Sources */,
 				A5009B0100000000000000D4 /* AutoTaskStore.swift in Sources */,
 				A5009B0100000000000000B6 /* BackgroundShellsPopover.swift in Sources */,
 				C0DE35860000000000000001 /* BackgroundWorkspacePrimeCoordinator.swift in Sources */,
@@ -7740,6 +7753,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				D77690000000000000000007 /* NotificationsPopoverResizeHandle.swift in Sources */,
 				D77690000000000000000009 /* NotificationsPopoverResizeView.swift in Sources */,
 				D36090020000000000000001 /* NSWindow+CmuxPeerWindow.swift in Sources */,
+				A5009B010000000000000102 /* OctoDevScriptOutput.swift in Sources */,
+				A5009B010000000000000104 /* OctoDevScriptRunner.swift in Sources */,
 				C67540090000000000000001 /* OmnibarAddressButtonStyle.swift in Sources */,
 				A9F200000000000000000017 /* OpenCodeEventStreamParser.swift in Sources */,
 				A9F200000000000000000018 /* OpenCodeEventTextAccumulator.swift in Sources */,
@@ -8861,6 +8876,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				C79010000000000000000005 /* NotificationScrollRestoreTestSupport.swift in Sources */,
 				4E5F60720000000000000001 /* NotificationSoundSettingsTests.swift in Sources */,
 				645645000000000000000002 /* NumberedShortcutSwapTests.swift in Sources */,
+				A5009B010000000000000108 /* OctoDevScriptTests.swift in Sources */,
 				0A1107110000000000000001 /* OllamaAgentDetectionTests.swift in Sources */,
 				4378399A7C0245EF8186F306 /* OmnibarAndToolsTests.swift in Sources */,
 				9637C6D3170F4BE1A7EF6243 /* OmnibarSubmitDecisionTests.swift in Sources */,
