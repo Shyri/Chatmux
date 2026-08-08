@@ -231,6 +231,31 @@ import Testing
         }
     }
 
+    // MARK: - GitLab sidebar commands
+
+    /// These names are the filenames of the user's markdown commands. A typo
+    /// here is silent: `isAvailable` finds nothing, the context-menu item
+    /// never renders, and there is no error anywhere.
+    @Test func gitLabChatCommandNamesMatchTheirMarkdownFiles() {
+        #expect(GitLabChatCommand.startTask.commandName == "start-task")
+        #expect(GitLabChatCommand.reviewMergeRequest.commandName == "mr-review")
+    }
+
+    @Test func gitLabChatCommandIsAvailableOnlyWithItsFile() throws {
+        try withTemporaryCwd { cwd in
+            let dir = cwd.appendingPathComponent(".claude/commands", isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try "Review MR $ARGUMENTS".write(
+                to: dir.appendingPathComponent("mr-review.md"),
+                atomically: true,
+                encoding: .utf8
+            )
+            #expect(
+                GitLabChatCommandCoordinator.isAvailable(.reviewMergeRequest, directory: cwd.path)
+            )
+        }
+    }
+
     // MARK: - helper
 
     private func withTemporaryCwd(_ body: (URL) throws -> Void) throws {

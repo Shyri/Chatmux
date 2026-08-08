@@ -267,9 +267,16 @@ final class MergeRequestsState: ObservableObject {
 
 struct MergeRequestsListView: View {
     @ObservedObject var workspace: Workspace
+    /// Run `/mr-review <iid>` in a new chat tab. Injected by the container
+    /// that owns the `TabManager`; `nil` where no chat can be opened.
+    var onReview: ((Int) -> Void)? = nil
     @StateObject private var state = MergeRequestsState()
     @State private var reviewerFilter: String = ""  // empty = all
     @State private var assigneeFilter: String = ""  // empty = all
+    /// Whether an `mr-review` command file is reachable from this workspace.
+    /// Resolved once per directory: it is a filesystem scan, and the rows
+    /// below the `LazyVStack` boundary must receive plain values.
+    @State private var reviewAvailable = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -289,17 +296,35 @@ struct MergeRequestsListView: View {
                 mrList
             }
         }
-        .onAppear { refreshIfNeeded() }
+        .onAppear {
+            refreshIfNeeded()
+            refreshReviewAvailability()
+        }
         .onChange(of: workspace.id) { _ in
             state.clear()
             reviewerFilter = ""
             assigneeFilter = ""
             refreshIfNeeded()
+            refreshReviewAvailability()
         }
         .onChange(of: workspace.currentDirectory) { _ in
             reviewerFilter = ""
             assigneeFilter = ""
             refreshIfNeeded()
+            refreshReviewAvailability()
+        }
+    }
+
+    /// `/mr-review` is a user- or project-level markdown command, so its
+    /// presence is a property of the checkout, not of cmux.
+    private func refreshReviewAvailability() {
+        let available = onReview != nil
+            && GitLabChatCommandCoordinator.isAvailable(
+                .reviewMergeRequest,
+                directory: workspace.currentDirectory
+            )
+        if reviewAvailable != available {
+            reviewAvailable = available
         }
     }
 
@@ -592,7 +617,8 @@ struct MergeRequestsListView: View {
                                 to: assignee,
                                 directory: directory
                             )
-                        }
+                        },
+                        onReview: reviewAvailable ? { onReview?(mr.iid) } : nil
                     )
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -676,6 +702,9 @@ private struct MRCardView: View {
     let directory: String
     let assigneeMenu: MRAssigneeMenuContext
     let onSelectAssignee: (GitLabReviewer?) -> Void
+    /// Non-nil only when an `mr-review` command is actually available from
+    /// the workspace.
+    let onReview: (() -> Void)?
     @State private var isHovered = false
 
     var body: some View {
@@ -711,6 +740,15 @@ private struct MRCardView: View {
             showDiff()
         }
         .contextMenu {
+            if let onReview {
+                Button(action: onReview) {
+                    Label(
+                        String(localized: "mr.card.review", defaultValue: "Review MR"),
+                        systemImage: "play.circle"
+                    )
+                }
+                Divider()
+            }
             Button {
                 showDiff()
             } label: {

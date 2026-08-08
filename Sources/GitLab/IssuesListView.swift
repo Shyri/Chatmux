@@ -793,12 +793,11 @@ struct IssuesListView: View {
     /// presence is a property of the checkout, not of cmux. Re-resolved
     /// whenever the workspace directory changes.
     private func refreshStartTaskAvailability() {
-        let dir = workspace.currentDirectory
         let available = onStartTask != nil
-            && SlashCommandRegistry.command(
-                named: GitLabIssueStartTaskCoordinator.commandName,
-                cwd: dir.isEmpty ? nil : dir
-            ) != nil
+            && GitLabChatCommandCoordinator.isAvailable(
+                .startTask,
+                directory: workspace.currentDirectory
+            )
         if startTaskAvailable != available {
             startTaskAvailable = available
         }

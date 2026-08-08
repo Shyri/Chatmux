@@ -36,6 +36,8 @@ struct GitLabSidebarView: View {
     /// Start `/start-task <iid>` for an issue in a new chat tab. Supplied by
     /// the container that owns the `TabManager`.
     var onStartTask: ((Int) -> Void)? = nil
+    /// Same, for `/mr-review <iid>` on a merge request.
+    var onReviewMergeRequest: ((Int) -> Void)? = nil
     @State private var selectedTab: GitLabSidebarTab = .mergeRequests
 
     var body: some View {
@@ -143,7 +145,7 @@ struct GitLabSidebarView: View {
     private var content: some View {
         switch selectedTab {
         case .mergeRequests:
-            MergeRequestsListView(workspace: workspace)
+            MergeRequestsListView(workspace: workspace, onReview: onReviewMergeRequest)
         case .pipelines:
             PipelinesListView(workspace: workspace)
         case .issues:
@@ -154,25 +156,59 @@ struct GitLabSidebarView: View {
     }
 }
 
-/// Bridges "start this issue" from the GitLab sidebar into the chat: opens a
-/// new Claude Chat tab in the selected workspace and sends `/start-task <iid>`
-/// as if the user had typed it, leaving the CLI to expand the command.
+/// The chat commands the GitLab sidebar can start for the object under the
+/// cursor. Each is a user-authored markdown command under `.claude/commands/`,
+/// not something cmux ships — hence `isAvailable`.
+enum GitLabChatCommand {
+    /// Issues tab → `/start-task <iid>`.
+    case startTask
+    /// MRs tab → `/mr-review <iid>`.
+    case reviewMergeRequest
+
+    /// The `/`-less command name. Must match the markdown filename.
+    var commandName: String {
+        switch self {
+        case .startTask: return "start-task"
+        case .reviewMergeRequest: return "mr-review"
+        }
+    }
+}
+
+/// Bridges "act on this issue / MR" from the GitLab sidebar into the chat:
+/// opens a new Claude Chat tab in the selected workspace and sends
+/// `/<command> <iid>` as if the user had typed it, leaving the CLI to expand
+/// the command.
 ///
 /// Mirrors `SessionEntryResumeCoordinator`: the sidebar views take a plain
 /// closure, and the container that owns the `TabManager` binds it here.
-enum GitLabIssueStartTaskCoordinator {
-    /// The `/`-less name of the markdown command invoked for an issue.
-    static let commandName = "start-task"
-
+enum GitLabChatCommandCoordinator {
     @MainActor
-    static func startTask(issueIID: Int, workspace: Workspace, tabManager: TabManager) {
+    static func run(
+        _ command: GitLabChatCommand,
+        iid: Int,
+        workspace: Workspace,
+        tabManager: TabManager
+    ) {
         let directory = workspace.currentDirectory
         ChatSlashCommandLauncher.openChat(
-            running: commandName,
-            arguments: String(issueIID),
+            running: command.commandName,
+            arguments: String(iid),
             workingDirectory: directory.isEmpty ? nil : directory,
             tabManager: tabManager
         )
+    }
+
+    /// Whether the command's markdown file is reachable from `directory`
+    /// (project scope) or the user's home. A menu item that resolves to
+    /// nothing is worse than no menu item.
+    ///
+    /// This is a filesystem scan: resolve it once per directory, from
+    /// `onAppear`/`onChange`, never per row and never from `body`.
+    static func isAvailable(_ command: GitLabChatCommand, directory: String) -> Bool {
+        SlashCommandRegistry.command(
+            named: command.commandName,
+            cwd: directory.isEmpty ? nil : directory
+        ) != nil
     }
 }
 
