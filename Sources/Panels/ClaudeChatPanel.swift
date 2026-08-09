@@ -421,7 +421,22 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
         didSet {
             let delta = messages.count - oldValue.count
             if delta > 0 {
-                visibleMessageWindow += delta
+                // Follow the arrivals, but only so far. Growing forever assumes
+                // the transcript grows because someone is reading it — true of
+                // a conversation, false of an autonomous run, which appends for
+                // twenty minutes with nobody typing and left the panel holding
+                // hundreds of tool cards nobody was looking at.
+                //
+                // Only automatic growth is capped. A window the user opened
+                // deliberately ("load older" / "show all") is left alone, and
+                // never yanked back down by an arriving message — rows they
+                // asked for must not vanish.
+                if visibleMessageWindow < Self.maxAutoGrownVisibleWindow {
+                    visibleMessageWindow = min(
+                        visibleMessageWindow + delta,
+                        Self.maxAutoGrownVisibleWindow
+                    )
+                }
             } else if delta < 0 {
                 visibleMessageWindow = max(0, min(visibleMessageWindow, messages.count))
             }
@@ -446,7 +461,17 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
     /// How many additional older messages each "load older" click reveals.
     static let visibleMessageWindowStep: Int = 60
 
-    /// Ceiling for how far the window may grow **on its own**.
+    /// Ceiling for how far the render window may grow **on its own**, as
+    /// messages arrive. Twice the opening window: two screens of automatic
+    /// scrollback, and everything older on demand through "load older".
+    ///
+    /// Not a tuning knob — it is the difference between a panel that survives
+    /// an autonomous run and one that livelocks. Every mounted row is a
+    /// `ToolUseCard` or `ToolBatchView` whose buttons the nested layout probes
+    /// re-measure on every pass, which is where the 40% of main thread in
+    /// `ButtonLayoutComputer` came from.
+    ///
+    /// Explicit reveals are deliberately exempt: see `messages.didSet`.
     static let maxAutoGrownVisibleWindow: Int = 120
 
     /// Session id emitted by Claude on the first `system/init` event of a
