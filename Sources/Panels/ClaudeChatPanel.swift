@@ -446,6 +446,9 @@ final class ClaudeChatPanel: Panel, ObservableObject, ChatMcpHttpServerDelegate 
     /// How many additional older messages each "load older" click reveals.
     static let visibleMessageWindowStep: Int = 60
 
+    /// Ceiling for how far the window may grow **on its own**.
+    static let maxAutoGrownVisibleWindow: Int = 120
+
     /// Session id emitted by Claude on the first `system/init` event of a
     /// conversation. Required for `--resume` on subsequent turns.
     @Published private(set) var sessionId: String?

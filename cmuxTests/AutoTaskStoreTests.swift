@@ -359,3 +359,85 @@ import Testing
         #expect(due.map(\.issueIID) == [2, 3, 1])
     }
 }
+
+/// Chatmux-only: the transcript's render window under an autonomous run.
+///
+/// `visibleMessageWindow` is capped at 60 when a panel opens or resumes, but
+/// nothing capped it as messages *arrived*: `messages.didSet` grew it by the
+/// delta on every append, forever. That is the right behaviour for a
+/// conversation — messages must not slide off the top while you read at mid
+/// scroll — and it rests on an assumption an autonomous run breaks: that the
+/// transcript grows because you are following it.
+///
+/// An `/auto-task` writes for twenty minutes with nobody typing. The window
+/// followed message for message, and the panel ended up holding hundreds of
+/// `ToolUseCard` rows nobody was looking at. Captured live at 100% CPU with
+/// the Auto-Tasks panel open and a task running: `StackLayout.prioritize` 48%,
+/// `_FlexFrameLayout` 47%, `ButtonLayoutComputer` 40% — the nested probes
+/// re-measuring every one of those cards' buttons on every pass.
+@MainActor
+@Suite struct ChatVisibleWindowGrowthTests {
+    private func panel(initial: Int) -> ClaudeChatPanel {
+        let messages = (0..<initial).map { ChatMessage.text(.assistant, "row \($0)") }
+        return ClaudeChatPanel(
+            workspaceId: UUID(),
+            workingDirectory: NSTemporaryDirectory(),
+            initialMessages: messages
+        )
+    }
+
+    /// The regression. An autonomous run appends hundreds of messages; the
+    /// window must stop following at some point rather than mounting all of
+    /// them.
+    @Test func windowStopsGrowingUnderAnAutonomousRun() {
+        let chat = panel(initial: 10)
+        for i in 0..<400 {
+            chat.appendSystemNotice("tool call \(i)")
+        }
+        #expect(chat.messages.count == 410)
+        #expect(
+            chat.visibleMessageWindow <= ClaudeChatPanel.maxAutoGrownVisibleWindow,
+            """
+            The render window grew to \(chat.visibleMessageWindow) rows on its own. \
+            An autonomous run appends without anyone reading, and every extra mounted \
+            ToolUseCard is re-measured by the nested layout probes on every pass.
+            """
+        )
+    }
+
+    /// Normal conversation is untouched: a handful of turns still all show.
+    @Test func aNormalConversationStillGrowsNormally() {
+        let chat = panel(initial: 10)
+        for i in 0..<20 { chat.appendSystemNotice("turn \(i)") }
+        #expect(chat.visibleMessageWindow == 30, "short conversations must be unaffected")
+    }
+
+    /// The cap is on *automatic* growth only. Asking to see more is an
+    /// explicit choice and must be honoured.
+    @Test func revealingOlderMessagesIsNotCapped() {
+        let chat = panel(initial: 600)
+        chat.revealAllMessages()
+        #expect(chat.visibleMessageWindow == 600)
+
+        chat.revealOlderMessages(by: 60)
+        #expect(chat.visibleMessageWindow == 600)
+    }
+
+    /// And once past the cap by choice, an arriving message must not yank the
+    /// window back down — that would make rows the user asked for disappear.
+    @Test func arrivingMessagesDoNotShrinkAWindowTheUserOpened() {
+        let chat = panel(initial: 600)
+        chat.revealAllMessages()
+        chat.appendSystemNotice("one more")
+        #expect(chat.visibleMessageWindow >= 600, "a user-opened window must not shrink")
+    }
+
+    /// Shrinking the transcript (rewind, clear) still clamps down.
+    @Test func windowStillClampsWhenTheTranscriptShrinks() {
+        let chat = panel(initial: 50)
+        chat.revealAllMessages()
+        #expect(chat.visibleMessageWindow == 50)
+        chat.clearTranscript()
+        #expect(chat.visibleMessageWindow <= chat.messages.count)
+    }
+}
