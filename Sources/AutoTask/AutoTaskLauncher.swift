@@ -114,6 +114,7 @@ enum AutoTaskLauncher {
         issueIID: Int,
         issueTitle: String,
         repositoryPath: String,
+        projectId: UUID?,
         tabManager: TabManager,
         store: AutoTaskStore = .shared,
         now: Date = Date()
@@ -122,6 +123,7 @@ enum AutoTaskLauncher {
             issueIID: issueIID,
             issueTitle: issueTitle,
             repositoryPath: repositoryPath,
+            projectId: projectId,
             scheduledAt: now
         )
         store.add(task)
@@ -134,6 +136,7 @@ enum AutoTaskLauncher {
         issueIID: Int,
         issueTitle: String,
         repositoryPath: String,
+        projectId: UUID?,
         at date: Date,
         store: AutoTaskStore = .shared
     ) {
@@ -142,8 +145,21 @@ enum AutoTaskLauncher {
                 issueIID: issueIID,
                 issueTitle: issueTitle,
                 repositoryPath: repositoryPath,
+                projectId: projectId,
                 scheduledAt: date
             )
         )
+    }
+
+    /// The project a workspace belongs to, if it is a saved one.
+    ///
+    /// This is the whole ownership rule: a task belongs to the project you
+    /// scheduled it *from*, never to one deduced from its directory. That is
+    /// what lets a project hold tasks for a worktree, or for an unrelated
+    /// repository, exactly as a workspace holds tabs for any directory.
+    static func owningProjectId(for workspace: Workspace) -> UUID? {
+        let store = ChatmuxProjectStore.shared
+        store.loadIfNeeded()
+        return store.project(forWorkspaceStableId: workspace.stableId)?.id
     }
 }

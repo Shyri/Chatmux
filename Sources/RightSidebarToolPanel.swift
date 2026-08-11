@@ -329,6 +329,7 @@ struct RightSidebarToolPanelView: View {
         case .autoTasks:
             AutoTaskListView(
                 store: .shared,
+                projectId: panel.attachedWorkspace.flatMap(AutoTaskLauncher.owningProjectId(for:)),
                 actions: AutoTaskPanelActions.make(tabManager: tabManager),
                 onOpenConfig: { panel.openAutoTaskConfigPane() }
             )

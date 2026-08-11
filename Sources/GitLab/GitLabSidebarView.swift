@@ -215,6 +215,7 @@ extension GitLabSidebarView {
                     issueIID: iid,
                     issueTitle: title,
                     repositoryPath: workspace.currentDirectory,
+                    projectId: AutoTaskLauncher.owningProjectId(for: workspace),
                     tabManager: tabManager
                 )
             },
@@ -223,6 +224,7 @@ extension GitLabSidebarView {
                     issueIID: iid,
                     issueTitle: title,
                     repositoryPath: workspace.currentDirectory,
+                    projectId: AutoTaskLauncher.owningProjectId(for: workspace),
                     at: date
                 )
             }

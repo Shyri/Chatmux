@@ -40,6 +40,10 @@ struct AutoTaskRowActions {
 /// already been launched.
 struct AutoTaskListView: View {
     @ObservedObject var store: AutoTaskStore
+    /// The project whose tasks this panel shows — the one the surrounding
+    /// workspace belongs to. `nil` for a workspace that is not a saved project,
+    /// which then sees the whole queue.
+    let projectId: UUID?
     let actions: AutoTaskRowActions
     let onOpenConfig: () -> Void
 
@@ -47,7 +51,7 @@ struct AutoTaskListView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            if store.tasks.isEmpty {
+            if visibleTasks.isEmpty {
                 emptyState
             } else {
                 list
@@ -111,13 +115,19 @@ struct AutoTaskListView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    /// Scoped to the active project. Ownerless tasks come through too — see
+    /// `AutoTaskStore.tasks(inProject:)` for why hiding them would be worse.
+    private var visibleTasks: [ScheduledAutoTask] {
+        store.tasks(inProject: projectId)
+    }
+
     /// Sections are computed once here, above the `LazyVStack`, into plain
     /// value snapshots. Nothing below this line can reach the store.
     private var sections: [(title: String, rows: [AutoTaskRowSnapshot])] {
         var missed: [AutoTaskRowSnapshot] = []
         var upcoming: [AutoTaskRowSnapshot] = []
         var history: [AutoTaskRowSnapshot] = []
-        for task in store.tasks {
+        for task in visibleTasks {
             let row = AutoTaskRowSnapshot(task: task)
             switch task.state {
             case .missed: missed.append(row)

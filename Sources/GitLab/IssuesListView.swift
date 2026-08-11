@@ -750,7 +750,10 @@ struct IssuesListView: View {
             projectMembers: state.projectMembers,
             visibleCandidates: visibleCandidates
         )
-        let scheduled = autoTaskStore.outstandingByIssue(repositoryPath: directory)
+        let scheduled = autoTaskStore.outstandingByIssue(
+            repositoryPath: directory,
+            projectId: AutoTaskLauncher.owningProjectId(for: workspace)
+        )
         return ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(filteredIssues) { issue in

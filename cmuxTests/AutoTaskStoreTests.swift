@@ -191,6 +191,95 @@ import Testing
         }
     }
 
+    // MARK: - project ownership
+    //
+    // A project holds tasks for any directory, exactly as a workspace holds
+    // tabs for any directory. Ownership is decided by where the task was
+    // scheduled *from*, never deduced from its path — which is what makes
+    // worktrees and unrelated repositories work with nothing to configure.
+
+    private func task(iid: Int, project: UUID?, repo: String = "/tmp/project") -> ScheduledAutoTask {
+        ScheduledAutoTask(
+            issueIID: iid,
+            issueTitle: "t\(iid)",
+            repositoryPath: repo,
+            projectId: project,
+            scheduledAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+    }
+
+    @Test func tasksAreScopedToTheirProject() throws {
+        try withStore { store, _ in
+            let a = UUID(), b = UUID()
+            store.add(task(iid: 1, project: a))
+            store.add(task(iid: 2, project: b))
+            #expect(store.tasks(inProject: a).map(\.issueIID) == [1])
+            #expect(store.tasks(inProject: b).map(\.issueIID) == [2])
+        }
+    }
+
+    /// A task in another repository still belongs to the project it was
+    /// scheduled from — the whole point of the model.
+    @Test func aTaskInAnotherDirectoryStillBelongsToItsProject() throws {
+        try withStore { store, _ in
+            let project = UUID()
+            store.add(task(iid: 7, project: project, repo: "/tmp/some-worktree"))
+            store.add(task(iid: 8, project: project, repo: "/tmp/unrelated-repo"))
+            #expect(Set(store.tasks(inProject: project).map(\.issueIID)) == [7, 8])
+        }
+    }
+
+    /// Ownerless tasks are visible from every project. One that fires on its
+    /// own with nowhere to be seen or cancelled would be worse than a longer
+    /// list.
+    @Test func ownerlessTasksAreVisibleEverywhere() throws {
+        try withStore { store, _ in
+            let a = UUID(), b = UUID()
+            store.add(task(iid: 1, project: a))
+            store.add(task(iid: 99, project: nil))
+            #expect(store.tasks(inProject: a).map(\.issueIID).contains(99))
+            #expect(store.tasks(inProject: b).map(\.issueIID) == [99])
+        }
+    }
+
+    /// A workspace that is not a saved project sees the whole queue.
+    @Test func noProjectMeansNoFiltering() throws {
+        try withStore { store, _ in
+            store.add(task(iid: 1, project: UUID()))
+            store.add(task(iid: 2, project: nil))
+            #expect(store.tasks(inProject: nil).count == 2)
+        }
+    }
+
+    /// Queues written before projects existed decode with no owner rather than
+    /// failing.
+    @Test func tasksFromBeforeProjectsDecodeAsOwnerless() throws {
+        try withStore { _, dir in
+            let json = """
+            [{"id":"\(UUID().uuidString)","issueIID":5,"issueTitle":"old",
+              "repositoryPath":"/tmp/p","scheduledAt":"2027-01-01T03:00:00Z","state":"pending"}]
+            """
+            try json.write(
+                to: dir.appendingPathComponent("auto-tasks.json"),
+                atomically: true, encoding: .utf8
+            )
+            let store = AutoTaskStore(directory: dir)
+            #expect(store.tasks.first?.projectId == nil)
+            #expect(store.tasks(inProject: UUID()).count == 1, "an old task must not vanish")
+        }
+    }
+
+    /// The issue badge is scoped too: another project's task must not mark an
+    /// issue here.
+    @Test func theIssueBadgeIsScopedToTheProject() throws {
+        try withStore { store, _ in
+            let mine = UUID(), theirs = UUID()
+            store.add(task(iid: 3, project: theirs))
+            #expect(store.outstandingByIssue(repositoryPath: "/tmp/project", projectId: mine).isEmpty)
+            #expect(store.outstandingByIssue(repositoryPath: "/tmp/project", projectId: theirs).keys.contains(3))
+        }
+    }
+
     // MARK: - marking issues in the GitLab list
     //
     // Purely local: the badge reflects this machine's queue and nothing is ever

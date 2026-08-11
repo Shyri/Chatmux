@@ -165,6 +165,21 @@ final class AutoTaskStore: ObservableObject {
         }
     }
 
+    /// The tasks belonging to a project, plus every ownerless one.
+    ///
+    /// Ownerless tasks — scheduled from a workspace that was not a saved
+    /// project, or queued before projects existed — are shown under every
+    /// project on purpose. Filtering them out would leave runs that fire on
+    /// their own with nowhere to be seen or cancelled.
+    func tasks(inProject projectId: UUID?) -> [ScheduledAutoTask] {
+        guard let projectId else { return tasks }
+        var out: [ScheduledAutoTask] = []
+        for task in tasks where task.projectId == projectId || task.projectId == nil {
+            out.append(task)
+        }
+        return out
+    }
+
     /// What the GitLab issue list needs to mark an issue: for each issue number
     /// in this repository, the outstanding auto-task, if any.
     ///
@@ -175,11 +190,14 @@ final class AutoTaskStore: ObservableObject {
     /// Only tasks that still owe a run are reported. A launched or cancelled
     /// one is history, and marking an issue "scheduled" for it would be a lie.
     /// When an issue has several, the soonest wins.
-    func outstandingByIssue(repositoryPath: String) -> [Int: ScheduledAutoTask] {
+    func outstandingByIssue(
+        repositoryPath: String,
+        projectId: UUID? = nil
+    ) -> [Int: ScheduledAutoTask] {
         let target = Self.comparablePath(repositoryPath)
         guard !target.isEmpty else { return [:] }
         var out: [Int: ScheduledAutoTask] = [:]
-        for task in tasks {
+        for task in tasks(inProject: projectId) {
             switch task.state {
             case .pending, .missed: break
             case .launched, .cancelled, .failed: continue

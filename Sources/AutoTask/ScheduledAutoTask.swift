@@ -29,9 +29,21 @@ struct ScheduledAutoTask: Codable, Identifiable, Equatable {
     /// Snapshotted so the list renders without going back to GitLab — and still
     /// reads correctly if the issue is later renamed or closed.
     let issueTitle: String
-    /// The run belongs to a repository, not to whichever workspace happens to
-    /// be selected when the timer fires.
+    /// Where the run happens. `/auto-task` executes in a directory, and this
+    /// is it.
     let repositoryPath: String
+    /// Which project the run belongs to, if it was scheduled from one.
+    ///
+    /// Deliberately independent of `repositoryPath`: a project can hold chats
+    /// and tasks for any directory, exactly as a workspace holds tabs for any
+    /// directory. Ownership is decided by where you scheduled it from, not
+    /// deduced from the path — which is what makes worktrees and unrelated
+    /// repositories work without configuring anything.
+    ///
+    /// `nil` when scheduled from a workspace that is not a saved project.
+    /// Those are never hidden by project filtering: an ownerless task that
+    /// launches on its own is worse than a slightly longer list.
+    var projectId: UUID?
     var scheduledAt: Date
     var state: State
     var launchedAt: Date?
@@ -55,6 +67,7 @@ struct ScheduledAutoTask: Codable, Identifiable, Equatable {
         issueIID: Int,
         issueTitle: String,
         repositoryPath: String,
+        projectId: UUID? = nil,
         scheduledAt: Date,
         state: State = .pending,
         launchedAt: Date? = nil,
@@ -67,6 +80,7 @@ struct ScheduledAutoTask: Codable, Identifiable, Equatable {
         self.issueIID = issueIID
         self.issueTitle = issueTitle
         self.repositoryPath = repositoryPath
+        self.projectId = projectId
         self.scheduledAt = scheduledAt
         self.state = state
         self.launchedAt = launchedAt
@@ -105,7 +119,7 @@ extension ScheduledAutoTask {
     /// queue file: a task written by a newer build lands as `.failed` with a
     /// readable reason instead of taking every other row down with it.
     enum CodingKeys: String, CodingKey {
-        case id, issueIID, issueTitle, repositoryPath, scheduledAt
+        case id, issueIID, issueTitle, repositoryPath, projectId, scheduledAt
         case state, launchedAt, chatPanelId, chatWorkspaceId, failureReason, claimedByPID
     }
 
@@ -115,6 +129,9 @@ extension ScheduledAutoTask {
         issueIID = try c.decode(Int.self, forKey: .issueIID)
         issueTitle = try c.decodeIfPresent(String.self, forKey: .issueTitle) ?? ""
         repositoryPath = try c.decode(String.self, forKey: .repositoryPath)
+        // Absent in queues written before projects existed; those tasks stay
+        // ownerless and visible everywhere.
+        projectId = try c.decodeIfPresent(UUID.self, forKey: .projectId)
         scheduledAt = try c.decode(Date.self, forKey: .scheduledAt)
         launchedAt = try c.decodeIfPresent(Date.self, forKey: .launchedAt)
         chatPanelId = try c.decodeIfPresent(UUID.self, forKey: .chatPanelId)
