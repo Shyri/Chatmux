@@ -16,7 +16,9 @@ struct AutoTaskSetupView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if model.canRun {
+                    if !model.isInsideGitRepository {
+                        notARepository
+                    } else if model.canRun {
                         stepContent
                     } else {
                         missingToolkit
@@ -66,6 +68,43 @@ struct AutoTaskSetupView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+    }
+
+    /// A project can be any directory — including one where nothing has been
+    /// started. Say so at the door instead of letting the user through five
+    /// steps to a script that answers `ERROR=not_in_git_repo`.
+    private var notARepository: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(
+                String(
+                    localized: "autoTask.setup.notARepo.title",
+                    defaultValue: "This project is not in a git repository"
+                ),
+                systemImage: "info.circle.fill"
+            )
+            .font(.system(size: 13, weight: .semibold))
+
+            Text(String(
+                localized: "autoTask.setup.notARepo.body",
+                defaultValue: "/auto-task resolves GitLab issues end to end, so it needs a repository to work in. A project does not — it can be any folder, including one where nothing has been started yet. This particular feature just has nothing to do here."
+            ))
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+
+            Text(model.repositoryPath)
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
+
+            Button {
+                model.refreshInstalledScripts()
+            } label: {
+                Text(String(
+                    localized: "autoTask.setup.notARepo.recheck",
+                    defaultValue: "Check again"
+                ))
+            }
+        }
     }
 
     /// With no fallback by design, a missing script is a wall, not a detour.

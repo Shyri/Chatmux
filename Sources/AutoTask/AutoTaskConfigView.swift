@@ -88,15 +88,28 @@ struct AutoTaskConfigView: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
-            Button {
-                showingSetup = true
-            } label: {
+            // Same check the assistant makes, surfaced one screen earlier: a
+            // project can be any folder, and offering setup for one that has no
+            // repository sends the user into a dead end.
+            if AutoTaskSetupPolicy.isInsideGitRepository(model.repositoryPath) {
+                Button {
+                    showingSetup = true
+                } label: {
+                    Text(String(
+                        localized: "autoTask.config.missing.runSetup",
+                        defaultValue: "Set up this repository"
+                    ))
+                }
+                .keyboardShortcut(.defaultAction)
+            } else {
                 Text(String(
-                    localized: "autoTask.config.missing.runSetup",
-                    defaultValue: "Set up this repository"
+                    localized: "autoTask.config.missing.notARepo",
+                    defaultValue: "This project is not in a git repository, and /auto-task needs one — it resolves GitLab issues. Nothing to configure here."
                 ))
+                .font(.system(size: 12))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
             }
-            .keyboardShortcut(.defaultAction)
 
             if let error = model.saveError {
                 Text(error).font(.system(size: 11)).foregroundStyle(.red)

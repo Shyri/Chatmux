@@ -3,6 +3,36 @@ import Foundation
 /// The decisions the setup assistant makes, separated from the UI and from
 /// process launching so they can be tested directly.
 enum AutoTaskSetupPolicy {
+    // MARK: - Preconditions
+
+    /// Whether `path` sits inside a git working tree.
+    ///
+    /// Checked with the filesystem rather than by shelling out: this gates the
+    /// very first screen, and a subprocess there would be both slower and
+    /// pointless — every octo-dev script answers `ERROR=not_in_git_repo` for
+    /// exactly this condition, so asking one only moves the same answer later.
+    ///
+    /// `.git` is a directory in a normal clone and a **file** in a worktree, so
+    /// existence is what matters, not its kind.
+    static func isInsideGitRepository(
+        _ path: String,
+        fileManager: FileManager = .default
+    ) -> Bool {
+        var current = URL(fileURLWithPath: path, isDirectory: true)
+            .standardizedFileURL
+            .resolvingSymlinksInPath()
+        guard !current.path.isEmpty else { return false }
+        while true {
+            if fileManager.fileExists(atPath: current.appendingPathComponent(".git").path) {
+                return true
+            }
+            let parent = current.deletingLastPathComponent()
+            // `/` is its own parent; stop rather than loop.
+            if parent.path == current.path { return false }
+            current = parent
+        }
+    }
+
     // MARK: - Verification level
 
     /// What "verified" will mean for this repository from now on. This is the

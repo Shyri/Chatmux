@@ -217,6 +217,63 @@ import Testing
 /// Chatmux-only: the assistant's decisions, kept out of the UI so they can be
 /// tested without a window or a subprocess.
 @Suite struct AutoTaskSetupPolicyTests {
+    // MARK: - preconditions
+    //
+    // A project is a saved workspace, and a workspace is any directory — it can
+    // be a folder where nothing has been started. `/auto-task` resolves GitLab
+    // issues, so it needs a repository; the assistant has to say that at the
+    // door rather than at step 2, where the script answers
+    // `ERROR=not_in_git_repo` after the user has already made choices.
+
+    private func withDirectory(_ files: [String], _ body: (String) throws -> Void) throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("RepoDetectTests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        for file in files {
+            let url = root.appendingPathComponent(file)
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(), withIntermediateDirectories: true
+            )
+            try "".write(to: url, atomically: true, encoding: .utf8)
+        }
+        try body(root.path)
+    }
+
+    @Test func aPlainFolderIsNotARepository() throws {
+        try withDirectory(["README.md"]) {
+            #expect(AutoTaskSetupPolicy.isInsideGitRepository($0) == false)
+        }
+    }
+
+    @Test func aCloneIsARepository() throws {
+        try withDirectory([".git/HEAD"]) {
+            #expect(AutoTaskSetupPolicy.isInsideGitRepository($0))
+        }
+    }
+
+    /// In a worktree `.git` is a *file*, not a directory. Checking for a
+    /// directory would call every worktree "not a repository" — and worktrees
+    /// are the normal case here, since /start-task creates one per issue.
+    @Test func aWorktreeIsARepository() throws {
+        try withDirectory([".git"]) {
+            #expect(AutoTaskSetupPolicy.isInsideGitRepository($0))
+        }
+    }
+
+    /// A subdirectory of a repository counts: the panel may be pointed at one.
+    @Test func aSubdirectoryOfARepositoryCounts() throws {
+        try withDirectory([".git/HEAD", "src/app/main.swift"]) { root in
+            #expect(AutoTaskSetupPolicy.isInsideGitRepository(root + "/src/app"))
+        }
+    }
+
+    /// Must terminate at `/` rather than looping on its own parent.
+    @Test func walkingUpTerminates() {
+        _ = AutoTaskSetupPolicy.isInsideGitRepository("/")
+        #expect(Bool(true), "returned instead of looping forever")
+    }
+
     // MARK: - verification level
 
     /// `./gradlew test` does not assemble the APK, so a broken layout passes

@@ -86,6 +86,16 @@ final class AutoTaskSetupModel: ObservableObject {
     /// are reported rather than worked around.
     @Published private(set) var missingScripts: [OctoDevScriptRunner.Script] = []
 
+    /// Whether this project sits in a git repository at all.
+    ///
+    /// A project is a saved workspace, and a workspace is any directory — it
+    /// may well be a folder where something has not been started yet. But
+    /// `/auto-task` resolves GitLab issues, so without a repository there is
+    /// nothing for it to do. Known before the first screen rather than
+    /// discovered at step 2, so the assistant does not walk the user into a
+    /// dead end.
+    @Published private(set) var isInsideGitRepository: Bool = true
+
     init(
         repositoryPath: String,
         runner: OctoDevScriptRunner = OctoDevScriptRunner(),
@@ -96,19 +106,27 @@ final class AutoTaskSetupModel: ObservableObject {
         self.fileManager = fileManager
         refreshInstalledScripts()
         refreshReviewerFile()
+        isInsideGitRepository = AutoTaskSetupPolicy.isInsideGitRepository(
+            repositoryPath,
+            fileManager: fileManager
+        )
     }
 
     // MARK: - Availability
 
     func refreshInstalledScripts() {
         missingScripts = [.autoTask, .mrReview, .mrCreate].filter { !runner.isInstalled($0) }
+        isInsideGitRepository = AutoTaskSetupPolicy.isInsideGitRepository(
+            repositoryPath,
+            fileManager: fileManager
+        )
     }
 
     /// Whether the assistant can do anything meaningful at all. `auto-task.sh`
     /// owns writing and validating the config; without it steps 2, 4 and 5 have
     /// no implementation, and inventing one here would be the second source of
     /// truth this design rejects.
-    var canRun: Bool { !missingScripts.contains(.autoTask) }
+    var canRun: Bool { !missingScripts.contains(.autoTask) && isInsideGitRepository }
 
     private func refreshReviewerFile() {
         hasReviewerFile = fileManager.fileExists(
