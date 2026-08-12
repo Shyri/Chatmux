@@ -3,6 +3,38 @@ import Foundation
 /// The decisions the setup assistant makes, separated from the UI and from
 /// process launching so they can be tested directly.
 enum AutoTaskSetupPolicy {
+    /// One sub-project as reported by `auto-task.sh detect-projects`.
+    ///
+    /// cmux used to scan for these itself, because `detect-project` only looked
+    /// at the repository root and answered `unknown` for a monorepo. The
+    /// toolkit does it now, so the scanner is gone: one implementation, and
+    /// `/auto-task` and `/mr-review` get the same answer this does.
+    struct DetectedProject: Identifiable, Equatable {
+        let name: String
+        /// Relative to the repository root.
+        let path: String
+        let projectType: String
+        /// `high` only when the command was derived from something real.
+        let verifyConfidence: String
+        let verifyCommand: String
+        let forbiddenPaths: String
+
+        var id: String { path }
+        /// The toolkit refuses to guess, so a low-confidence entry is one the
+        /// user has to fill in.
+        var isConfident: Bool { verifyConfidence == "high" && !verifyCommand.isEmpty }
+
+        init?(_ values: [String: String]) {
+            guard let path = values["PATH"], !path.isEmpty else { return nil }
+            self.path = path
+            name = values["NAME"] ?? path
+            projectType = values["TYPE"] ?? "unknown"
+            verifyConfidence = values["VERIFY_CONFIDENCE"] ?? "low"
+            verifyCommand = values["VERIFY_CMD"] ?? ""
+            forbiddenPaths = values["FORBIDDEN_PATHS"] ?? ""
+        }
+    }
+
     // MARK: - Preconditions
 
     /// Whether `path` sits inside a git working tree.

@@ -16,6 +16,18 @@ struct OctoDevScriptOutput: Equatable {
     /// The block between `---OUTPUT_TAIL---` and `---END---`, used by `verify`
     /// to carry the tail of the command's own output.
     private(set) var outputTail: String?
+    /// Every `---LABEL--- … ---END---` block, in order, with its raw lines.
+    /// `detect-projects` emits one `PROJECT` block per sub-project; `verify`
+    /// emits one `OUTPUT_TAIL`. Kept generic so a new block type does not need
+    /// this parser changed.
+    private(set) var blocks: [Block] = []
+
+    /// A `---LABEL--- … ---END---` section of the output. A struct rather than
+    /// a tuple because tuples do not conform to `Equatable`.
+    struct Block: Equatable {
+        let label: String
+        let lines: [String]
+    }
     /// Anything on stderr that was not the `ERROR=` line, kept for display when
     /// a script fails in a way the contract does not cover.
     private(set) var rawStandardError: String = ""
@@ -31,22 +43,23 @@ struct OctoDevScriptOutput: Equatable {
         self.exitCode = exitCode
         rawStandardError = stderr.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        var insideTail = false
-        var tail: [String] = []
+        var currentLabel: String?
+        var currentLines: [String] = []
         for line in stdout.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            // The briefing shows the opening fence with a variable number of
-            // leading dashes, so match on the label rather than an exact rule.
-            if trimmed.hasSuffix("OUTPUT_TAIL---") || trimmed.hasSuffix("OUTPUT_TAIL--") {
-                insideTail = true
+            if let label = Self.blockLabel(trimmed), label != "END" {
+                currentLabel = label
+                currentLines = []
                 continue
             }
-            if insideTail {
-                if trimmed == "---END---" || trimmed == "--END---" {
-                    insideTail = false
+            if currentLabel != nil {
+                if Self.blockLabel(trimmed) == "END" {
+                    blocks.append(Block(label: currentLabel!, lines: currentLines))
+                    currentLabel = nil
+                    currentLines = []
                     continue
                 }
-                tail.append(line)
+                currentLines.append(line)
                 continue
             }
             guard let equals = trimmed.firstIndex(of: "=") else { continue }
@@ -54,8 +67,13 @@ struct OctoDevScriptOutput: Equatable {
             guard !key.isEmpty, Self.looksLikeAKey(key) else { continue }
             values[key] = String(trimmed[trimmed.index(after: equals)...])
         }
-        if !tail.isEmpty {
-            outputTail = tail.joined(separator: "\n")
+        // An unterminated block still counts: a truncated script should not
+        // lose everything it did emit.
+        if let label = currentLabel {
+            blocks.append(Block(label: label, lines: currentLines))
+        }
+        for block in blocks where block.label == "OUTPUT_TAIL" {
+            outputTail = block.lines.joined(separator: "\n")
         }
 
         for line in stderr.components(separatedBy: "\n") {
@@ -63,6 +81,34 @@ struct OctoDevScriptOutput: Equatable {
             guard trimmed.hasPrefix("ERROR=") else { continue }
             errorCode = String(trimmed.dropFirst("ERROR=".count))
         }
+    }
+
+    /// `---LABEL---`, tolerating a stray dash — the fence is written by hand in
+    /// places and has shown up as `--END---`.
+    private static func blockLabel(_ line: String) -> String? {
+        var value = line
+        while value.hasPrefix("-") { value.removeFirst() }
+        while value.hasSuffix("-") { value.removeLast() }
+        guard !value.isEmpty, value != line else { return nil }
+        guard value.allSatisfy({ $0.isUppercase || $0 == "_" }) else { return nil }
+        return value
+    }
+
+    /// The `KEY=VALUE` pairs inside a block, for the ones that carry them.
+    func pairs(inBlocksLabelled label: String) -> [[String: String]] {
+        var out: [[String: String]] = []
+        for block in blocks where block.label == label {
+            var values: [String: String] = [:]
+            for line in block.lines {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                guard let equals = trimmed.firstIndex(of: "=") else { continue }
+                let key = String(trimmed[..<equals]).trimmingCharacters(in: .whitespaces)
+                guard Self.looksLikeAKey(key) else { continue }
+                values[key] = String(trimmed[trimmed.index(after: equals)...])
+            }
+            if !values.isEmpty { out.append(values) }
+        }
+        return out
     }
 
     /// `KEY` is upper snake case. Without this, a stray line containing `=`

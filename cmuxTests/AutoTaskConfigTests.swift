@@ -309,3 +309,162 @@ import Testing
         #expect(warnings(text, hasMRCreate: false).count >= 3)
     }
 }
+
+/// Chatmux-only: the monorepo config, `[sections]` and all.
+///
+/// The toolkit grew per-sub-project sections so a change in the landing page
+/// does not run the Flutter test suite six times, and so a pre-existing failure
+/// in one sub-project cannot block merge requests for another. cmux has to read
+/// and write that file without reformatting it — it is committed and shared.
+@Suite struct AutoTaskConfigSectionsTests {
+    private let sample = """
+    # Config for /auto-task (octo-dev).
+    FORBIDDEN_PATHS=".gitlab-ci.yml,ci/,.octo-dev/,firebase.json"
+    MAX_FILES=25
+    VERIFY_TIMEOUT=1800
+
+    [lore]
+    PATH=lore
+    VERIFY_CMD=flutter analyze && flutter test
+    FORBIDDEN_PATHS=pubspec.lock
+
+    [functions]
+    PATH=functions
+    VERIFY_CMD=npm test
+    FORBIDDEN_PATHS=package-lock.json
+
+    """
+
+    /// The script's `read_conf KEY FILE` with no section reads the preamble
+    /// *only*. Reading them together would pick up a sub-project's VERIFY_CMD
+    /// as if it were the repository's.
+    @Test func globalScopeDoesNotSeeSectionValues() {
+        let config = AutoTaskConfigFile(text: sample)
+        #expect(config.value(for: .forbiddenPaths) == ".gitlab-ci.yml,ci/,.octo-dev/,firebase.json")
+        #expect(config.value(for: .verifyCommand) == nil)
+    }
+
+    @Test func sectionValuesAreReadPerSection() {
+        let config = AutoTaskConfigFile(text: sample)
+        #expect(config.value(for: .verifyCommand, in: "lore") == "flutter analyze && flutter test")
+        #expect(config.value(for: .verifyCommand, in: "functions") == "npm test")
+        #expect(config.forbiddenPatterns(in: "lore") == ["pubspec.lock"])
+    }
+
+    @Test func sectionsAndPathsAreExposed() {
+        let config = AutoTaskConfigFile(text: sample)
+        #expect(config.sections == ["lore", "functions"])
+        #expect(config.isMonorepo)
+        #expect(config.path(ofSection: "lore") == "lore")
+    }
+
+    @Test func roundTripWithSectionsIsByteIdentical() {
+        #expect(AutoTaskConfigFile(text: sample).serialized() == sample)
+    }
+
+    @Test func editingASectionLeavesTheOthersAlone() {
+        var config = AutoTaskConfigFile(text: sample)
+        config.set(.verifyCommand, to: "npm run build && npm test", in: "functions")
+        #expect(config.value(for: .verifyCommand, in: "functions") == "npm run build && npm test")
+        #expect(config.value(for: .verifyCommand, in: "lore") == "flutter analyze && flutter test")
+        #expect(config.value(for: .verifyCommand) == nil, "the preamble must stay clean")
+    }
+
+    /// The one that would corrupt the file: a new global key appended at the
+    /// end of the file lands *inside the last section*, silently becoming a
+    /// sub-project setting.
+    @Test func aNewGlobalKeyLandsBeforeTheFirstSection() {
+        var config = AutoTaskConfigFile(text: sample)
+        config.set("NEW_KEY", to: "1")
+        #expect(config.value(for: "NEW_KEY") == "1")
+        #expect(config.value(for: "NEW_KEY", in: "lore") == nil)
+        #expect(config.value(for: "NEW_KEY", in: "functions") == nil)
+    }
+
+    @Test func aNewKeyInASectionStaysInIt() {
+        var config = AutoTaskConfigFile(text: sample)
+        config.set(.maxFiles, to: "10", in: "landing-does-not-exist")
+        // Unknown section: appended at the end, which is that scope.
+        var other = AutoTaskConfigFile(text: sample)
+        other.set(.maxFiles, to: "10", in: "lore")
+        #expect(other.value(for: .maxFiles, in: "lore") == "10")
+        #expect(other.value(for: .maxFiles) == "25", "the global one is untouched")
+        _ = config
+    }
+
+    /// A file with no sections must behave exactly as it always did.
+    @Test func aSingleProjectConfigIsUnaffected() {
+        let config = AutoTaskConfigFile(text: "VERIFY_CMD=make test\nMAX_FILES=25\n")
+        #expect(config.isMonorepo == false)
+        #expect(config.sections.isEmpty)
+        #expect(config.value(for: .verifyCommand) == "make test")
+    }
+
+    /// A commented-out header is not a section.
+    @Test func aCommentedSectionHeaderIsNotASection() {
+        let config = AutoTaskConfigFile(text: "# [lore]\nMAX_FILES=25\n")
+        #expect(config.sections.isEmpty)
+        #expect(config.value(for: .maxFiles) == "25")
+    }
+}
+
+/// Chatmux-only: reading `detect-projects`, which replaced cmux's own scanner.
+@Suite struct DetectedProjectTests {
+    private let output = """
+    MONOREPO=yes
+    PROJECT_COUNT=3
+    ---PROJECT---
+    NAME=functions
+    PATH=functions
+    TYPE=node-js
+    VERIFY_CONFIDENCE=high
+    VERIFY_CMD=npm run build && npm test
+    FORBIDDEN_PATHS=package-lock.json,yarn.lock
+    ---END---
+    ---PROJECT---
+    NAME=landing
+    PATH=landing
+    TYPE=node-js
+    VERIFY_CONFIDENCE=low
+    VERIFY_CMD=
+    FORBIDDEN_PATHS=package-lock.json
+    ---END---
+    """
+
+    @Test func everyProjectBlockIsRead() {
+        let parsed = OctoDevScriptOutput(stdout: output, stderr: "", exitCode: 0)
+        #expect(parsed["MONOREPO"] == "yes")
+        let projects = parsed.pairs(inBlocksLabelled: "PROJECT")
+            .compactMap(AutoTaskSetupPolicy.DetectedProject.init)
+        #expect(projects.map(\.path) == ["functions", "landing"])
+        #expect(projects.first?.verifyCommand == "npm run build && npm test")
+    }
+
+    /// Low confidence means the toolkit refused to guess. It must not be
+    /// pre-selected as if it were verified.
+    @Test func lowConfidenceProjectsAreNotConfident() {
+        let projects = OctoDevScriptOutput(stdout: output, stderr: "", exitCode: 0)
+            .pairs(inBlocksLabelled: "PROJECT")
+            .compactMap(AutoTaskSetupPolicy.DetectedProject.init)
+        #expect(projects.first { $0.path == "functions" }?.isConfident == true)
+        #expect(projects.first { $0.path == "landing" }?.isConfident == false)
+    }
+
+    /// A block without PATH cannot address anything.
+    @Test func aBlockWithoutAPathIsDropped() {
+        let parsed = OctoDevScriptOutput(
+            stdout: "---PROJECT---\nNAME=x\nTYPE=go\n---END---", stderr: "", exitCode: 0
+        )
+        #expect(parsed.pairs(inBlocksLabelled: "PROJECT").compactMap(AutoTaskSetupPolicy.DetectedProject.init).isEmpty)
+    }
+
+    /// `verify` still works: OUTPUT_TAIL is just another block.
+    @Test func theOutputTailBlockStillWorks() {
+        let parsed = OctoDevScriptOutput(
+            stdout: "VERIFY_RESULT=fail\n---OUTPUT_TAIL---\nboom\n---END---",
+            stderr: "", exitCode: 0
+        )
+        #expect(parsed["VERIFY_RESULT"] == "fail")
+        #expect(parsed.outputTail == "boom")
+    }
+}

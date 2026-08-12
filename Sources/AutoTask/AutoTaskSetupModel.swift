@@ -66,6 +66,14 @@ final class AutoTaskSetupModel: ObservableObject {
     @Published var maxFiles: String = "25"
     @Published var verifyTimeout: String = "1800"
     @Published private(set) var detectedSnapshotFramework: String?
+    /// Sub-projects as reported by `auto-task.sh detect-projects`. Empty for a
+    /// conventional single-project repository, which the script signals with
+    /// `MONOREPO=no`.
+    @Published private(set) var subprojects: [AutoTaskSetupPolicy.DetectedProject] = []
+    @Published private(set) var isMonorepo = false
+    /// Which of them the user wants in the verification. Unverifiable ones are
+    /// never pre-selected — there is nothing to select.
+    @Published var selectedSubprojectPaths: Set<String> = []
 
     // Step 5
     @Published private(set) var verifyLines: [String] = []
@@ -224,6 +232,35 @@ final class AutoTaskSetupModel: ObservableObject {
             )
             phase = .succeeded
         }
+    }
+
+    /// Ask the toolkit what this repository contains.
+    ///
+    /// Separate from `detectProject()` because it answers a different question:
+    /// that one classifies the root, this one enumerates sub-projects. On a
+    /// conventional repo it reports `MONOREPO=no` and a single entry.
+    func detectSubprojects() async {
+        switch await runner.runAsync(
+            .autoTask, arguments: ["detect-projects"], repositoryPath: repositoryPath
+        ) {
+        case .failure:
+            subprojects = []
+            isMonorepo = false
+        case .success(let out):
+            isMonorepo = out["MONOREPO"] == "yes"
+            subprojects = out.pairs(inBlocksLabelled: "PROJECT")
+                .compactMap(AutoTaskSetupPolicy.DetectedProject.init)
+            // Everything the toolkit is confident about starts selected; the
+            // rest needs a human, so it does not.
+            selectedSubprojectPaths = Set(
+                subprojects.filter(\.isConfident).map(\.path)
+            )
+        }
+    }
+
+    /// The sub-projects the user picked, in the order the script reported them.
+    var chosenSubprojects: [AutoTaskSetupPolicy.DetectedProject] {
+        subprojects.filter { selectedSubprojectPaths.contains($0.path) }
     }
 
     /// Re-derive the command when the level changes, keeping any edit the user

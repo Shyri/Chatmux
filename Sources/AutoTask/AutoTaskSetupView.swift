@@ -35,7 +35,10 @@ struct AutoTaskSetupView: View {
             // `.task` rather than `.onAppear`: detection shells out, and every
             // one of these scripts can take seconds. None of it may block the
             // main thread.
-            if model.canRun, model.projectType.isEmpty { await model.detectProject() }
+            if model.canRun, model.projectType.isEmpty {
+                await model.detectProject()
+                await model.detectSubprojects()
+            }
         }
     }
 
@@ -166,20 +169,25 @@ struct AutoTaskSetupView: View {
             } else if model.projectType == "unknown" {
                 Text(String(
                     localized: "autoTask.setup.detect.unknown",
-                    defaultValue: "The stack could not be recognized. Detection only looks at the repository root, so a monorepo or an unusual layout lands here. Tell it what this project is:"
+                    defaultValue: "The stack could not be recognized. Detection only looks at the repository root, so a monorepo or an unusual layout lands here."
                 ))
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-                Picker("", selection: $model.manualProjectType) {
-                    Text(String(localized: "autoTask.setup.detect.pick", defaultValue: "Choose…")).tag("")
-                    ForEach(Self.projectTypes, id: \.self) { type in
-                        Text(type).tag(type)
+                if model.subprojects.isEmpty {
+                    // Nothing found either: fall back to naming it by hand.
+                    Picker("", selection: $model.manualProjectType) {
+                        Text(String(localized: "autoTask.setup.detect.pick", defaultValue: "Choose…")).tag("")
+                        ForEach(Self.projectTypes, id: \.self) { type in
+                            Text(type).tag(type)
+                        }
                     }
+                    .labelsHidden()
+                    .frame(width: 220)
+                } else {
+                    subprojectPicker
                 }
-                .labelsHidden()
-                .frame(width: 220)
             } else {
                 HStack(spacing: 6) {
                     Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
@@ -196,11 +204,87 @@ struct AutoTaskSetupView: View {
             }
 
             phaseFooter
-            navigation(canContinue: !model.effectiveProjectType.isEmpty) {
+            navigation(
+                canContinue: !model.effectiveProjectType.isEmpty || !model.chosenSubprojects.isEmpty
+            ) {
                 model.advance()
                 Task { await model.runAutoProposal() }
             }
         }
+    }
+
+    /// What the repository actually contains, when the toolkit could not say.
+    ///
+    /// Every command shown here came from something on disk — a declared npm
+    /// script, a `test/` directory. A subproject with nothing verifiable is
+    /// listed with the reason and cannot be selected, rather than being given a
+    /// plausible command that tests nothing.
+    private var subprojectPicker: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(String(
+                localized: "autoTask.setup.detect.foundSubprojects",
+                defaultValue: "Found inside the repository — pick what the verification should cover:"
+            ))
+            .font(.system(size: 12, weight: .semibold))
+
+            ForEach(model.subprojects) { subproject in
+                subprojectRow(subproject)
+            }
+
+            if !model.chosenSubprojects.isEmpty {
+                Text(model.chosenSubprojects.map(\.verifyCommand).joined(separator: "\n"))
+                    .font(.system(size: 11, design: .monospaced))
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.darculaCardBackground))
+            }
+        }
+    }
+
+    private func subprojectRow(_ subproject: AutoTaskSetupPolicy.DetectedProject) -> some View {
+        let isSelected = model.selectedSubprojectPaths.contains(subproject.path)
+        return Button {
+            if isSelected {
+                model.selectedSubprojectPaths.remove(subproject.path)
+            } else {
+                model.selectedSubprojectPaths.insert(subproject.path)
+            }
+        } label: {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(isSelected ? Color.darculaAccent : Color.darculaForeground.opacity(0.4))
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(subproject.path)
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        Text(subproject.projectType)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                    if !subproject.verifyCommand.isEmpty {
+                        Text(subproject.verifyCommand)
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                    // The toolkit refuses to guess a command it could not
+                    // derive from something real, and says so rather than
+                    // inventing one that tests nothing.
+                    if !subproject.isConfident {
+                        Text(String(
+                            localized: "autoTask.setup.detect.lowConfidence",
+                            defaultValue: "The toolkit could not derive a verify command here — fill it in yourself."
+                        ))
+                        .font(.system(size: 10))
+                        .foregroundStyle(.orange)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     private static let projectTypes = [
