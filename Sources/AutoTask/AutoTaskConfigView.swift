@@ -5,6 +5,11 @@ import SwiftUI
 /// Not a text editor: each parameter is shown with what it means and what
 /// getting it wrong costs, because this file is committed and a mistake in it
 /// affects every autonomous run by every member of the team.
+///
+/// The file has two shapes and so does this screen. A single-project repository
+/// is a flat form. A monorepo is a tree — the global block, then one block per
+/// `[section]` — because that is what the file is, and flattening it would show
+/// a `VERIFY_CMD` that does not exist and hide the four that do.
 struct AutoTaskConfigView: View {
     @StateObject private var model: AutoTaskConfigEditorModel
     @StateObject private var setup: AutoTaskSetupModel
@@ -12,6 +17,9 @@ struct AutoTaskConfigView: View {
     /// Step 0 of the assistant's flow: with a config already present, do not
     /// launch the wizard — show the configuration and offer to edit it.
     @State private var showingSetup = false
+    @State private var addingSection = false
+    @State private var newSectionName = ""
+    @State private var newSectionPath = ""
 
     init(repositoryPath: String) {
         _model = StateObject(wrappedValue: AutoTaskConfigEditorModel(repositoryPath: repositoryPath))
@@ -38,12 +46,7 @@ struct AutoTaskConfigView: View {
                 case .unreadable(let path):
                     unreadableState(path: path)
                 case .loaded:
-                    sharedFileNotice
-                    verifyCommandSection
-                    forbiddenPathsSection
-                    limitsSection
-                    findingsSection
-                    saveBar
+                    loadedBody
                 }
             }
             .padding(20)
@@ -57,6 +60,7 @@ struct AutoTaskConfigView: View {
             await model.refreshProjectType()
         }
         .sheet(isPresented: $showingDiff) { diffSheet }
+        .sheet(isPresented: $addingSection) { addSectionSheet }
     }
 
     // MARK: - No file yet
@@ -133,7 +137,231 @@ struct AutoTaskConfigView: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Loaded
+
+    /// Validation runs **once** here and is handed down.
+    ///
+    /// Every access to it re-parses and re-validates the whole file; asking
+    /// once per section would make that quadratic in the number of
+    /// sub-projects, on every keystroke.
+    private var loadedBody: some View {
+        let findings = model.findingsByScope
+        let types = model.sectionProjectTypes
+        return VStack(alignment: .leading, spacing: 16) {
+            sharedFileNotice
+            if model.isMonorepo {
+                monorepoBody(findings: findings, types: types)
+            } else {
+                singleProjectBody(findings: findings[nil] ?? [])
+            }
+            pathTester
+            saveBar
+        }
+    }
+
+    private func singleProjectBody(
+        findings: [AutoTaskConfigDiagnostics.Finding]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            verifyCommandSection
+            forbiddenPathsSection(
+                text: $model.forbiddenPathsRaw,
+                help: String(
+                    localized: "autoTask.config.forbidden.help",
+                    defaultValue: "Comma-separated bash case globs. Touching one aborts the run. Note: * crosses directory separators, so */build.gradle does not cover a root-level build.gradle; and a trailing slash is anchored at the repository root, so fastlane/ does not cover android/fastlane/."
+                )
+            )
+            limitsSection
+            findingRows(findings)
+        }
+    }
+
+    // MARK: - Monorepo
+
+    private func monorepoBody(
+        findings: [String?: [AutoTaskConfigDiagnostics.Finding]],
+        types: [String: String]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            monorepoNotice
+            globalBlock(findings: findings[nil] ?? [])
+            ForEach($model.sections) { $section in
+                AutoTaskConfigSectionView(
+                    section: $section,
+                    findings: findings[section.name] ?? [],
+                    projectType: types[section.path.trimmingCharacters(in: .whitespaces)] ?? "",
+                    globalTimeout: model.verifyTimeout,
+                    onRemove: { model.removeSection(id: section.id) }
+                )
+            }
+            undeclaredProjectsNotice
+            addSectionButton
+        }
+    }
+
+    private var monorepoNotice: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: "square.stack.3d.up")
+            Text(String(
+                localized: "autoTask.config.monorepo.notice",
+                defaultValue: "This repository is configured as \(model.sections.count) sub-projects. A run verifies only the ones its change touches; a change that touches none reports no_project_affected and is not verified at all."
+            ))
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(.system(size: 11))
+        .foregroundStyle(.secondary)
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 6).fill(Color.darculaCardBackground))
+    }
+
+    private func globalBlock(findings: [AutoTaskConfigDiagnostics.Finding]) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(
+                localized: "autoTask.config.global.title",
+                defaultValue: "Repository-wide"
+            ))
+            .font(.system(size: 12, weight: .semibold))
+
+            forbiddenPathsSection(
+                text: $model.forbiddenPathsRaw,
+                help: String(
+                    localized: "autoTask.config.global.forbiddenHelp",
+                    defaultValue: "Relative to the repository root. Only these can protect files that live at the root — CI configuration, .octo-dev — because a section's globs are rewritten under its PATH and can never reach them."
+                )
+            )
+            limitsSection
+            findingRows(findings)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.darculaCardBackground.opacity(0.5)))
+        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.darculaBorder, lineWidth: 0.5))
+    }
+
+    /// Sub-projects that exist on disk but are not in the file.
+    ///
+    /// Worth its own block because the failure is silent: `init-config --auto`
+    /// skips whatever it cannot derive a command for, and a change landing
+    /// there is reported as verified when nothing ran.
+    @ViewBuilder
+    private var undeclaredProjectsNotice: some View {
+        let undeclared = model.undeclaredProjects
+        if !undeclared.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "questionmark.folder").foregroundStyle(.orange)
+                    Text(String(
+                        localized: "autoTask.config.undeclared.title",
+                        defaultValue: "Found in the repository but not in this file. A change touching one of these is never verified."
+                    ))
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                .font(.system(size: 11))
+
+                ForEach(undeclared) { project in
+                    HStack(spacing: 8) {
+                        Text(project.path)
+                            .font(.system(size: 11, design: .monospaced))
+                        Text(project.projectType)
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            model.addSection(from: project)
+                        } label: {
+                            Text(String(
+                                localized: "autoTask.config.undeclared.add",
+                                defaultValue: "Add"
+                            ))
+                            .font(.system(size: 10))
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Color.darculaAccent)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.orange.opacity(0.1)))
+        }
+    }
+
+    private var addSectionButton: some View {
+        Button {
+            newSectionName = model.availableSectionName()
+            newSectionPath = ""
+            addingSection = true
+        } label: {
+            Label {
+                Text(String(
+                    localized: "autoTask.config.addSection",
+                    defaultValue: "Add sub-project"
+                ))
+            } icon: {
+                Image(systemName: "plus")
+            }
+            .font(.system(size: 11))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.darculaAccent)
+    }
+
+    private var addSectionSheet: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(
+                localized: "autoTask.config.addSection.title",
+                defaultValue: "New sub-project"
+            ))
+            .font(.system(size: 13, weight: .semibold))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(String(localized: "autoTask.config.addSection.name", defaultValue: "Name"))
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                TextField("", text: $newSectionName)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("PATH")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                TextField("", text: $newSectionPath)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 12, design: .monospaced))
+                Text(String(
+                    localized: "autoTask.config.addSection.pathHelp",
+                    defaultValue: "Relative to the repository root, with no leading ./"
+                ))
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+            }
+
+            HStack {
+                Spacer()
+                Button {
+                    addingSection = false
+                } label: {
+                    Text(String(localized: "autoTask.config.addSection.cancel", defaultValue: "Cancel"))
+                }
+                Button {
+                    model.addSection(named: newSectionName, path: newSectionPath)
+                    addingSection = false
+                } label: {
+                    Text(String(localized: "autoTask.config.addSection.confirm", defaultValue: "Add"))
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(
+                    newSectionName.trimmingCharacters(in: .whitespaces).isEmpty
+                        || newSectionPath.trimmingCharacters(in: .whitespaces).isEmpty
+                )
+            }
+        }
+        .padding(16)
+        .frame(width: 420)
+    }
+
+    // MARK: - Shared blocks
 
     private var sharedFileNotice: some View {
         HStack(alignment: .top, spacing: 6) {
@@ -186,10 +414,10 @@ struct AutoTaskConfigView: View {
         }
     }
 
-    private var forbiddenPathsSection: some View {
+    private func forbiddenPathsSection(text: Binding<String>, help: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             sectionTitle("FORBIDDEN_PATHS")
-            TextField("", text: $model.forbiddenPathsRaw, axis: .vertical)
+            TextField("", text: text, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 12, design: .monospaced))
                 .lineLimit(2...6)
@@ -197,17 +425,16 @@ struct AutoTaskConfigView: View {
                 .background(RoundedRectangle(cornerRadius: 5).fill(Color.darculaCardBackground))
                 .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(Color.darculaBorder, lineWidth: 0.5))
 
-            helpText(String(
-                localized: "autoTask.config.forbidden.help",
-                defaultValue: "Comma-separated bash case globs. Touching one aborts the run. Note: * crosses directory separators, so */build.gradle does not cover a root-level build.gradle; and a trailing slash is anchored at the repository root, so fastlane/ does not cover android/fastlane/."
-            ))
-
-            pathTester
+            helpText(help)
         }
     }
 
     /// The most useful part of this screen: the glob semantics have traps that
     /// reading the list does not reveal, so show what the list actually blocks.
+    ///
+    /// In a monorepo it tests against the **effective** list — global plus every
+    /// section's rewritten under its `PATH` — which is what the guard enforces
+    /// and is not something anyone can assemble by reading the file.
     private var pathTester: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -230,6 +457,13 @@ struct AutoTaskConfigView: View {
                 .foregroundStyle(Color.darculaAccent)
             }
 
+            if model.isMonorepo {
+                helpText(String(
+                    localized: "autoTask.config.tester.effectiveHelp",
+                    defaultValue: "Tested against what the guard really enforces: the repository-wide globs plus every sub-project's, rewritten under its PATH."
+                ))
+            }
+
             TextField("", text: $model.pathProbe, axis: .vertical)
                 .textFieldStyle(.plain)
                 .font(.system(size: 11, design: .monospaced))
@@ -241,31 +475,42 @@ struct AutoTaskConfigView: View {
             let results = model.probeResults
             if !results.isEmpty {
                 VStack(alignment: .leading, spacing: 3) {
-                    ForEach(results, id: \.path) { result in
-                        HStack(alignment: .top, spacing: 6) {
-                            Image(systemName: result.blockedBy.isEmpty ? "checkmark.circle" : "lock.fill")
-                                .foregroundStyle(result.blockedBy.isEmpty ? Color.green : Color.orange)
-                            Text(result.path)
-                                .font(.system(size: 11, design: .monospaced))
-                            Spacer()
-                            if let pattern = result.blockedBy.first {
-                                Text(pattern)
-                                    .font(.system(size: 10, design: .monospaced))
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Text(String(
-                                    localized: "autoTask.config.tester.allowed",
-                                    defaultValue: "editable"
-                                ))
-                                .font(.system(size: 10))
-                                .foregroundStyle(.secondary)
-                            }
-                        }
+                    ForEach(results) { result in
+                        probeRow(result)
                     }
                 }
                 .padding(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 5).fill(Color.darculaCardBackground.opacity(0.6)))
+            }
+        }
+    }
+
+    private func probeRow(_ result: AutoTaskConfigEditorModel.ProbeResult) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Image(systemName: result.blockedBy.isEmpty ? "checkmark.circle" : "lock.fill")
+                .foregroundStyle(result.blockedBy.isEmpty ? Color.green : Color.orange)
+            Text(result.path)
+                .font(.system(size: 11, design: .monospaced))
+            Spacer()
+            if let hit = result.blockedBy.first {
+                HStack(spacing: 4) {
+                    Text(hit.pattern)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.secondary)
+                    if let section = hit.section {
+                        Text("[\(section)]")
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(Color.darculaAccent)
+                    }
+                }
+            } else {
+                Text(String(
+                    localized: "autoTask.config.tester.allowed",
+                    defaultValue: "editable"
+                ))
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
             }
         }
     }
@@ -297,30 +542,12 @@ struct AutoTaskConfigView: View {
         }
     }
 
-    private var findingsSection: some View {
+    private func findingRows(_ findings: [AutoTaskConfigDiagnostics.Finding]) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            ForEach(model.errors) { finding in
-                findingRow(finding, color: .red, symbol: "xmark.octagon.fill")
-            }
-            ForEach(model.warnings) { finding in
-                findingRow(finding, color: .orange, symbol: "exclamationmark.triangle.fill")
+            ForEach(findings) { finding in
+                AutoTaskConfigFindingRow(finding: finding)
             }
         }
-    }
-
-    private func findingRow(
-        _ finding: AutoTaskConfigDiagnostics.Finding,
-        color: Color,
-        symbol: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: 6) {
-            Image(systemName: symbol).foregroundStyle(color)
-            Text(finding.message).fixedSize(horizontal: false, vertical: true)
-        }
-        .font(.system(size: 11))
-        .padding(8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 5).fill(color.opacity(0.1)))
     }
 
     private var saveBar: some View {

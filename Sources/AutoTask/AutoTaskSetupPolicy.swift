@@ -3,6 +3,95 @@ import Foundation
 /// The decisions the setup assistant makes, separated from the UI and from
 /// process launching so they can be tested directly.
 enum AutoTaskSetupPolicy {
+    /// One sub-project that `init-config --auto` actually wrote into the file.
+    ///
+    /// Reported as a single line — `PROJECT=lore path=lore type=flutter` —
+    /// rather than as a block, so it needs its own parsing. Only the ones the
+    /// toolkit could derive a command for appear here; the rest come back in
+    /// `SKIPPED_PROJECTS`.
+    struct WrittenProject: Identifiable, Equatable {
+        let name: String
+        let path: String
+        let projectType: String
+
+        var id: String { name }
+
+        init(name: String, path: String, projectType: String) {
+            self.name = name
+            self.path = path
+            self.projectType = projectType
+        }
+
+        /// Takes the **value** of the `PROJECT=` line: `lore path=lore
+        /// type=flutter`. The name is the bare first field.
+        init?(initConfigLine line: String) {
+            var fields: [String: String] = [:]
+            var name: String?
+            for (index, piece) in line.split(separator: " ").enumerated() {
+                if let equals = piece.firstIndex(of: "=") {
+                    fields[String(piece[..<equals])] = String(piece[piece.index(after: equals)...])
+                } else if index == 0 {
+                    name = String(piece)
+                }
+            }
+            guard let resolved = name, !resolved.isEmpty else { return nil }
+            self.name = resolved
+            path = fields["path"] ?? ""
+            projectType = fields["type"] ?? "unknown"
+        }
+    }
+
+    /// Reconcile a freshly written monorepo config with what the user chose and
+    /// typed in step 1.
+    ///
+    /// `init-config --auto` derives its own commands and writes **only** the
+    /// sub-projects it was confident about, so three things have to happen
+    /// here, and getting any of them wrong rewrites a file the whole team
+    /// shares:
+    ///
+    /// - a sub-project left unticked comes out of the file — step 1 asks what
+    ///   the verification should cover, so leaving it in would ignore the answer
+    /// - an edited command replaces the derived one
+    /// - a sub-project the toolkit skipped, but which now has a command, gets
+    ///   its section added; otherwise typing that command would do nothing
+    ///
+    /// Sections are matched on `PATH`, not on name: the name is the toolkit's
+    /// and never appears in step 1.
+    ///
+    /// Safe to remove sections wholesale **only** because `--auto` has just
+    /// rewritten the file, so every section in it came from this run.
+    static func apply(
+        commands: [String: String],
+        chosen: [DetectedProject],
+        to config: inout AutoTaskConfigFile
+    ) {
+        guard !chosen.isEmpty else { return }
+        let chosenPaths = Set(chosen.map(\.path))
+
+        for section in config.sections {
+            guard let path = config.path(ofSection: section),
+                  !chosenPaths.contains(path) else { continue }
+            config.removeSection(named: section)
+        }
+
+        for subproject in chosen {
+            let command = (commands[subproject.path] ?? "")
+                .trimmingCharacters(in: .whitespaces)
+            guard !command.isEmpty else { continue }
+            let section = config.sections.first { config.path(ofSection: $0) == subproject.path }
+            if let section {
+                guard config.value(for: .verifyCommand, in: section) != command else { continue }
+                config.set(.verifyCommand, to: command, in: section)
+            } else {
+                config.addSection(named: subproject.name, path: subproject.path)
+                config.set(.verifyCommand, to: command, in: subproject.name)
+                if !subproject.forbiddenPaths.isEmpty {
+                    config.set(.forbiddenPaths, to: subproject.forbiddenPaths, in: subproject.name)
+                }
+            }
+        }
+    }
+
     /// One sub-project as reported by `auto-task.sh detect-projects`.
     ///
     /// cmux used to scan for these itself, because `detect-project` only looked

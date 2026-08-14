@@ -10,6 +10,12 @@ struct OctoDevScriptOutput: Equatable {
     /// Every `KEY=VALUE` pair seen on stdout. A repeated key keeps the last
     /// value, matching how the shell config itself resolves duplicates.
     private(set) var values: [String: String] = [:]
+    /// Every value seen for a key, in order.
+    ///
+    /// Some commands report a list by repeating a key rather than by emitting
+    /// blocks — `init-config --auto` prints one `PROJECT=` line per
+    /// sub-project — and `values` would keep only the last of them.
+    private(set) var allValues: [String: [String]] = [:]
     /// `ERROR=<code>` from stderr, when present.
     private(set) var errorCode: String?
     private(set) var exitCode: Int32 = 0
@@ -47,25 +53,39 @@ struct OctoDevScriptOutput: Equatable {
         var currentLines: [String] = []
         for line in stdout.components(separatedBy: "\n") {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if let label = Self.blockLabel(trimmed), label != "END" {
-                currentLabel = label
-                currentLines = []
-                continue
-            }
-            if currentLabel != nil {
-                if Self.blockLabel(trimmed) == "END" {
-                    blocks.append(Block(label: currentLabel!, lines: currentLines))
+            if let label = Self.blockLabel(trimmed) {
+                // A fence either closes the open block — `---END---` or the
+                // matching `---X_END---`, which `verify` uses — or opens a new
+                // one. Opening while a block is already open closes it first,
+                // so a missing closer costs one block, not all of them.
+                if let open = currentLabel, Self.closes(label, open: open) {
+                    blocks.append(Block(label: open, lines: currentLines))
                     currentLabel = nil
                     currentLines = []
                     continue
                 }
+                // A closer with nothing open: `verify` nests `---OUTPUT_TAIL---
+                // … ---END---` inside its per-project block, so by the time
+                // `---VERIFY_END---` arrives that block is already closed.
+                // Treating it as a new block would invent a `VERIFY_END` one.
+                if label == "END" || label.hasSuffix("_END") { continue }
+                if let open = currentLabel {
+                    blocks.append(Block(label: open, lines: currentLines))
+                }
+                currentLabel = Self.normalize(label)
+                currentLines = []
+                continue
+            }
+            if currentLabel != nil {
                 currentLines.append(line)
                 continue
             }
             guard let equals = trimmed.firstIndex(of: "=") else { continue }
             let key = String(trimmed[..<equals]).trimmingCharacters(in: .whitespaces)
             guard !key.isEmpty, Self.looksLikeAKey(key) else { continue }
-            values[key] = String(trimmed[trimmed.index(after: equals)...])
+            let value = String(trimmed[trimmed.index(after: equals)...])
+            values[key] = value
+            allValues[key, default: []].append(value)
         }
         // An unterminated block still counts: a truncated script should not
         // lose everything it did emit.
@@ -81,6 +101,19 @@ struct OctoDevScriptOutput: Equatable {
             guard trimmed.hasPrefix("ERROR=") else { continue }
             errorCode = String(trimmed.dropFirst("ERROR=".count))
         }
+    }
+
+    /// Whether a fence closes the block that is currently open.
+    ///
+    /// `verify` brackets each sub-project with `---VERIFY_BEGIN---` and
+    /// `---VERIFY_END---` rather than the generic `---END---`.
+    private static func closes(_ label: String, open: String) -> Bool {
+        label == "END" || label == "\(open)_END"
+    }
+
+    /// `X_BEGIN` and `X` are the same block, so callers ask for one name.
+    private static func normalize(_ label: String) -> String {
+        label.hasSuffix("_BEGIN") ? String(label.dropLast("_BEGIN".count)) : label
     }
 
     /// `---LABEL---`, tolerating a stray dash — the fence is written by hand in

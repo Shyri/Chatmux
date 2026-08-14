@@ -150,6 +150,47 @@ struct AutoTaskConfigFile: Equatable {
 
     var forbiddenPatterns: [String] { forbiddenPatterns(in: nil) }
 
+    /// One glob as it is actually enforced, plus where it was written.
+    ///
+    /// The origin is not decoration: with sections, the pattern that blocks a
+    /// file is rarely the string anyone typed — it is that string prefixed with
+    /// its section's `PATH`. Showing only the rewritten form makes it look like
+    /// the file is lying about itself.
+    struct EffectivePattern: Equatable {
+        /// Relative to the repository root, which is what the guard compares.
+        let pattern: String
+        /// `nil` for the global preamble.
+        let section: String?
+        /// As written in the file, before the `PATH/` prefix.
+        let written: String
+    }
+
+    /// The globs `/auto-task` really enforces: the global ones plus **every**
+    /// section's, rewritten relative to its `PATH`.
+    ///
+    /// All sections count, not just the ones a run touches — mirroring
+    /// `effective_forbidden` in the script, which keeps
+    /// `functions/package-lock.json` protected even during a lore-only run.
+    /// Any check in cmux that uses the raw global list alone would report a
+    /// monorepo as far less protected than it is.
+    func effectiveForbiddenPatterns() -> [EffectivePattern] {
+        var out = forbiddenPatterns(in: nil).map {
+            EffectivePattern(pattern: $0, section: nil, written: $0)
+        }
+        for section in sections {
+            guard let path = path(ofSection: section), !path.isEmpty else { continue }
+            let prefix = path.hasSuffix("/") ? String(path.dropLast()) : path
+            for pattern in forbiddenPatterns(in: section) {
+                out.append(EffectivePattern(
+                    pattern: "\(prefix)/\(pattern)",
+                    section: section,
+                    written: pattern
+                ))
+            }
+        }
+        return out
+    }
+
     /// Sub-project sections, in file order. Empty for a single-project repo.
     var sections: [String] {
         var out: [String] = []
@@ -234,6 +275,68 @@ struct AutoTaskConfigFile: Equatable {
 
     mutating func set(_ key: Key, to value: String, in scope: Scope = nil) {
         set(key.rawValue, to: value, in: scope)
+    }
+
+    /// Drop every assignment of a key within a scope.
+    ///
+    /// Needed because "inherit the global value" is expressed by the key being
+    /// *absent* from the section, not by it being empty: `read_conf` returning
+    /// an empty string and returning nothing are different outcomes for
+    /// `VERIFY_TIMEOUT`, where the script falls back with `${p_timeout:-…}`.
+    mutating func removeKey(_ key: String, in scope: Scope = nil) {
+        var current: String?
+        var kept: [Line] = []
+        for line in lines {
+            if case .section(let name, _) = line {
+                current = name
+                kept.append(line)
+                continue
+            }
+            if case .assignment(let name, _, _, _) = line, current == scope, name == key {
+                continue
+            }
+            kept.append(line)
+        }
+        lines = kept
+    }
+
+    /// Append a new sub-project section at the end of the file.
+    ///
+    /// The toolkit only writes sections it is confident about and reports the
+    /// rest as `SKIPPED_PROJECTS`; adding one by hand is how those get in.
+    mutating func addSection(named name: String, path: String) {
+        guard !sections.contains(name) else { return }
+        if case .other(let text)? = lines.last, text.isEmpty {
+            // Already a blank line at the end; do not stack a second one.
+        } else if !lines.isEmpty {
+            lines.append(.other(""))
+        }
+        lines.append(.section(name: name, raw: "[\(name)]"))
+        lines.append(.assignment(key: "PATH", value: path, indent: "", quote: nil))
+    }
+
+    /// Remove a section and everything under it, up to the next section.
+    ///
+    /// The blank line that separates it from the previous block goes too, so
+    /// removing a section does not leave a growing gap behind.
+    mutating func removeSection(named name: String) {
+        guard let start = lines.firstIndex(where: {
+            if case .section(let existing, _) = $0 { return existing == name }
+            return false
+        }) else { return }
+
+        var end = start + 1
+        while end < lines.count {
+            if case .section = lines[end] { break }
+            end += 1
+        }
+
+        var from = start
+        while from > 0, case .other(let text) = lines[from - 1],
+              text.trimmingCharacters(in: .whitespaces).isEmpty {
+            from -= 1
+        }
+        lines.removeSubrange(from..<end)
     }
 
     /// A value with whitespace or shell metacharacters has to stay quoted, or

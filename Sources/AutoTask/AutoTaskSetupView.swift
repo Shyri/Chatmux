@@ -45,8 +45,11 @@ struct AutoTaskSetupView: View {
     // MARK: - Chrome
 
     private var stepIndicator: some View {
-        HStack(spacing: 4) {
-            ForEach(AutoTaskSetupModel.Step.allCases, id: \.rawValue) { step in
+        // The model's own list, not every case: a sectioned repository skips
+        // three of them, and showing them would promise screens the flow never reaches.
+        let steps = model.steps
+        return HStack(spacing: 4) {
+            ForEach(steps, id: \.rawValue) { step in
                 let isCurrent = step == model.step
                 let isPast = step < model.step
                 Text(step.title)
@@ -61,7 +64,7 @@ struct AutoTaskSetupView: View {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(isCurrent ? Color.darculaAccent.opacity(0.15) : Color.clear)
                     )
-                if step != .done {
+                if step != steps.last {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 7))
                         .foregroundStyle(Color.darculaForeground.opacity(0.25))
@@ -162,7 +165,15 @@ struct AutoTaskSetupView: View {
 
     private var detectStep: some View {
         VStack(alignment: .leading, spacing: 12) {
-            title(String(localized: "autoTask.setup.detect.title", defaultValue: "What kind of project is this?"))
+            title(model.isMonorepo
+                ? String(
+                    localized: "autoTask.setup.detect.titleMonorepo",
+                    defaultValue: "What should be verified in this repository?"
+                )
+                : String(
+                    localized: "autoTask.setup.detect.title",
+                    defaultValue: "What kind of project is this?"
+                ))
 
             if model.projectType.isEmpty {
                 ProgressView().controlSize(.small)
@@ -203,14 +214,40 @@ struct AutoTaskSetupView: View {
                 }
             }
 
+            if !model.chosenSubprojectsWithoutCommand.isEmpty {
+                Text(String(
+                    localized: "autoTask.setup.detect.needsCommand",
+                    defaultValue: "Selected without a command: \(model.chosenSubprojectsWithoutCommand.map(\.path).joined(separator: ", ")). Write one, or untick them — a section with no command fails every run that touches it."
+                ))
+                .font(.system(size: 11))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+
             phaseFooter
             navigation(
-                canContinue: !model.effectiveProjectType.isEmpty || !model.chosenSubprojects.isEmpty
+                canContinue: canContinueFromDetect
             ) {
-                model.advance()
-                Task { await model.runAutoProposal() }
+                if model.isMonorepo {
+                    // No proposal screen here: step 1 already answered what it
+                    // asked, per sub-project. Write the configuration and go
+                    // straight to running it.
+                    Task { if await model.writeSectionedConfiguration() { model.advance() } }
+                } else {
+                    model.advance()
+                    Task { await model.runAutoProposal() }
+                }
             }
         }
+    }
+
+    private var canContinueFromDetect: Bool {
+        guard model.phase != .running else { return false }
+        if model.isMonorepo {
+            return !model.chosenSubprojects.isEmpty
+                && model.chosenSubprojectsWithoutCommand.isEmpty
+        }
+        return !model.effectiveProjectType.isEmpty || !model.chosenSubprojects.isEmpty
     }
 
     /// What the repository actually contains, when the toolkit could not say.
@@ -230,61 +267,77 @@ struct AutoTaskSetupView: View {
             ForEach(model.subprojects) { subproject in
                 subprojectRow(subproject)
             }
-
-            if !model.chosenSubprojects.isEmpty {
-                Text(model.chosenSubprojects.map(\.verifyCommand).joined(separator: "\n"))
-                    .font(.system(size: 11, design: .monospaced))
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.darculaCardBackground))
-            }
         }
     }
 
+    /// One sub-project: pick it, and edit the command it will run.
+    ///
+    /// The command is editable here rather than shown as text. What the toolkit
+    /// derives is a starting point that often does not pass — `flutter analyze`
+    /// almost never does on a real project the first time — and a verification
+    /// nobody can get to green blocks every autonomous run, which is worse than
+    /// a laxer one that works. This is also the only way a sub-project the
+    /// toolkit refused to guess for gets a command at all.
     private func subprojectRow(_ subproject: AutoTaskSetupPolicy.DetectedProject) -> some View {
         let isSelected = model.selectedSubprojectPaths.contains(subproject.path)
-        return Button {
-            if isSelected {
-                model.selectedSubprojectPaths.remove(subproject.path)
-            } else {
-                model.selectedSubprojectPaths.insert(subproject.path)
-            }
-        } label: {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(isSelected ? Color.darculaAccent : Color.darculaForeground.opacity(0.4))
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(subproject.path)
-                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                        Text(subproject.projectType)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                    }
-                    if !subproject.verifyCommand.isEmpty {
-                        Text(subproject.verifyCommand)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.secondary)
-                    }
-                    // The toolkit refuses to guess a command it could not
-                    // derive from something real, and says so rather than
-                    // inventing one that tests nothing.
-                    if !subproject.isConfident {
-                        Text(String(
-                            localized: "autoTask.setup.detect.lowConfidence",
-                            defaultValue: "The toolkit could not derive a verify command here — fill it in yourself."
-                        ))
-                        .font(.system(size: 10))
-                        .foregroundStyle(.orange)
-                        .fixedSize(horizontal: false, vertical: true)
-                    }
+        let command = Binding(
+            get: { model.subprojectCommands[subproject.path] ?? "" },
+            set: { model.subprojectCommands[subproject.path] = $0 }
+        )
+        return VStack(alignment: .leading, spacing: 4) {
+            Button {
+                if isSelected {
+                    model.selectedSubprojectPaths.remove(subproject.path)
+                } else {
+                    model.selectedSubprojectPaths.insert(subproject.path)
                 }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: isSelected ? "checkmark.square.fill" : "square")
+                        .foregroundStyle(isSelected ? Color.darculaAccent : Color.darculaForeground.opacity(0.4))
+                    Text(subproject.path)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    Text(subproject.projectType)
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+
+            TextField(
+                String(
+                    localized: "autoTask.setup.detect.commandPlaceholder",
+                    defaultValue: "Command to verify this sub-project"
+                ),
+                text: command,
+                axis: .vertical
+            )
+            .textFieldStyle(.plain)
+            .font(.system(size: 11, design: .monospaced))
+            .lineLimit(1...3)
+            .padding(6)
+            .background(RoundedRectangle(cornerRadius: 4).fill(Color.darculaSidebarBackground))
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.darculaBorder, lineWidth: 0.5))
+            .padding(.leading, 22)
+            .disabled(!isSelected)
+            .opacity(isSelected ? 1 : 0.5)
+
+            // The toolkit refuses to guess a command it could not derive from
+            // something real, and says so rather than inventing one that tests
+            // nothing.
+            if !subproject.isConfident {
+                Text(String(
+                    localized: "autoTask.setup.detect.lowConfidence",
+                    defaultValue: "The toolkit could not derive a verify command here — fill it in yourself."
+                ))
+                .font(.system(size: 10))
+                .foregroundStyle(.orange)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.leading, 22)
+            }
         }
-        .buttonStyle(.plain)
     }
 
     private static let projectTypes = [
@@ -499,6 +552,18 @@ struct AutoTaskSetupView: View {
             .foregroundStyle(.secondary)
             .fixedSize(horizontal: false, vertical: true)
 
+            if model.wroteSectionedConfig {
+                Text(String(
+                    localized: "autoTask.setup.validate.multiIntro",
+                    defaultValue: "Each sub-project is verified on its own, one after another. Together they can take a while — this is every verification in the repository running once."
+                ))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+                projectVerificationRows
+            }
+
             if model.isVerifying {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
@@ -557,6 +622,35 @@ struct AutoTaskSetupView: View {
                 }
                 .disabled(model.isVerifying)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var projectVerificationRows: some View {
+        if !model.projectVerifications.isEmpty {
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(model.projectVerifications) { verification in
+                    HStack(spacing: 8) {
+                        Image(systemName: verification.passed ? "checkmark.circle.fill" : "xmark.octagon.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(verification.passed ? Color.green : Color.red)
+                        Text(verification.name)
+                            .font(.system(size: 12, design: .monospaced))
+                        Spacer()
+                        if !verification.passed {
+                            Text(verification.result)
+                                .font(.system(size: 10, design: .monospaced))
+                                .foregroundStyle(.red)
+                        }
+                        Text(Self.elapsed(verification.seconds))
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 6).fill(Color.darculaCardBackground))
         }
     }
 

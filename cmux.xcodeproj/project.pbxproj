@@ -205,6 +205,7 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		A5009B0100000000000000F6 /* AutoTaskConfigEditorModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000F5 /* AutoTaskConfigEditorModel.swift */; };
 		A5009B0100000000000000E6 /* AutoTaskConfigFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */; };
 		A5009B0100000000000000E0 /* AutoTaskConfigPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000DF /* AutoTaskConfigPath.swift */; };
+		A5009B0100000000000000F9 /* AutoTaskConfigSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000FA /* AutoTaskConfigSectionView.swift */; };
 		A5009B0100000000000000E8 /* AutoTaskConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */; };
 		A5009B0100000000000000F8 /* AutoTaskConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000F7 /* AutoTaskConfigView.swift */; };
 		A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000D7 /* AutoTaskLauncher.swift */; };
@@ -2405,6 +2406,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		A5009B0100000000000000F5 /* AutoTaskConfigEditorModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigEditorModel.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigFile.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000DF /* AutoTaskConfigPath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigPath.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000FA /* AutoTaskConfigSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigSectionView.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTaskConfigTests.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000F7 /* AutoTaskConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskConfigView.swift; sourceTree = "<group>"; };
 		A5009B0100000000000000D7 /* AutoTaskLauncher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoTask/AutoTaskLauncher.swift; sourceTree = "<group>"; };
@@ -5788,6 +5790,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5009B010000000000000103 /* OctoDevScriptRunner.swift */,
 				A5009B010000000000000101 /* OctoDevScriptOutput.swift */,
 				A5009B0100000000000000F7 /* AutoTaskConfigView.swift */,
+				A5009B0100000000000000FA /* AutoTaskConfigSectionView.swift */,
 				A5009B0100000000000000F5 /* AutoTaskConfigEditorModel.swift */,
 				A5009B0100000000000000F3 /* AutoTaskConfigDiagnostics.swift */,
 				A5009B0100000000000000E5 /* AutoTaskConfigFile.swift */,
@@ -7178,6 +7181,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5009B0100000000000000F6 /* AutoTaskConfigEditorModel.swift in Sources */,
 				A5009B0100000000000000E6 /* AutoTaskConfigFile.swift in Sources */,
 				A5009B0100000000000000E0 /* AutoTaskConfigPath.swift in Sources */,
+				A5009B0100000000000000F9 /* AutoTaskConfigSectionView.swift in Sources */,
 				A5009B0100000000000000F8 /* AutoTaskConfigView.swift in Sources */,
 				A5009B0100000000000000D8 /* AutoTaskLauncher.swift in Sources */,
 				A5009B0100000000000000DC /* AutoTaskListView.swift in Sources */,
