@@ -420,6 +420,9 @@ C0DE71B10000000000000001 /* AppDelegate+AgentChatNotifications.swift in Sources 
 		5732A0145732A0145732A014 /* ChatLazyContractProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0145732B0145732B014 /* ChatLazyContractProbe.swift */; };
 		5732A0155732A0155732A015 /* ChatLazyContractProbeKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5732B0155732B0155732B015 /* ChatLazyContractProbeKey.swift */; };
 		D41A7C03D41A7C03D41A7C03 /* ChatLazyLayoutScaleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D41A7C04D41A7C04D41A7C04 /* ChatLazyLayoutScaleTests.swift */; };
+		A5009B0100000000000000FB /* ChatMarkdownTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000FC /* ChatMarkdownTable.swift */; };
+		A5009B0100000000000000FF /* ChatMarkdownTableTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B010000000000000100 /* ChatMarkdownTableTests.swift */; };
+		A5009B0100000000000000FD /* ChatMarkdownTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5009B0100000000000000FE /* ChatMarkdownTableView.swift */; };
 		6565EC5A507F25D89323E1C9 /* ChatMcpHttpServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E736846EE87C39633BF7FD51 /* ChatMcpHttpServer.swift */; };
 		9358ED6C0B673D29EEDADCDC /* ChatMcpRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDE53E85BE089D858B133162 /* ChatMcpRequest.swift */; };
 		6B7604793CDAE4FC30F643CF /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBEA3FF0E2CD31C56245F60D /* ChatMessage.swift */; };
@@ -2615,6 +2618,9 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 		5732B0145732B0145732B014 /* ChatLazyContractProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Debug/ChatLazyContractProbe.swift; sourceTree = "<group>"; };
 		5732B0155732B0155732B015 /* ChatLazyContractProbeKey.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Debug/ChatLazyContractProbeKey.swift"; sourceTree = "<group>"; };
 		D41A7C04D41A7C04D41A7C04 /* ChatLazyLayoutScaleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatLazyLayoutScaleTests.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000FC /* ChatMarkdownTable.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMarkdownTable.swift; sourceTree = "<group>"; };
+		A5009B010000000000000100 /* ChatMarkdownTableTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMarkdownTableTests.swift; sourceTree = "<group>"; };
+		A5009B0100000000000000FE /* ChatMarkdownTableView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMarkdownTableView.swift; sourceTree = "<group>"; };
 		E736846EE87C39633BF7FD51 /* ChatMcpHttpServer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMcpHttpServer.swift; sourceTree = "<group>"; };
 		BDE53E85BE089D858B133162 /* ChatMcpRequest.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMcpRequest.swift; sourceTree = "<group>"; };
 		FBEA3FF0E2CD31C56245F60D /* ChatMessage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
@@ -4549,6 +4555,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 			children = (
 				3B24B20C94CA551A82525FEE /* ClaudeChatPanel.swift */,
 				328BA8CF66699F6C9B66F660 /* ClaudeChatPanelView.swift */,
+				A5009B0100000000000000FC /* ChatMarkdownTable.swift */,
+				A5009B0100000000000000FE /* ChatMarkdownTableView.swift */,
 				A5009B0100000000000000B3 /* McpManagerPopover.swift */,
 				A5009B0100000000000000B5 /* BackgroundShellsPopover.swift */,
 			);
@@ -6036,6 +6044,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				A5009B0100000000000000E1 /* AutoTaskStoreTests.swift */,
 				A5009B010000000000000107 /* OctoDevScriptTests.swift */,
 				A5009B0100000000000000E7 /* AutoTaskConfigTests.swift */,
+				A5009B010000000000000100 /* ChatMarkdownTableTests.swift */,
 				CFB000712000000FORKTEST /* SlashCommandRegistryTests.swift */,
 				CFB000812000000FORKTEST /* StatusLineRunnerTests.swift */,
 				CFB000912000000FORKTEST /* GitLabModelDecodingTests.swift */,
@@ -7328,6 +7337,8 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				CA52B0070000000000000000 /* CanvasPaneContent.swift in Sources */,
 				5732A0145732A0145732A014 /* ChatLazyContractProbe.swift in Sources */,
 				5732A0155732A0155732A015 /* ChatLazyContractProbeKey.swift in Sources */,
+				A5009B0100000000000000FB /* ChatMarkdownTable.swift in Sources */,
+				A5009B0100000000000000FD /* ChatMarkdownTableView.swift in Sources */,
 				6565EC5A507F25D89323E1C9 /* ChatMcpHttpServer.swift in Sources */,
 				9358ED6C0B673D29EEDADCDC /* ChatMcpRequest.swift in Sources */,
 				6B7604793CDAE4FC30F643CF /* ChatMessage.swift in Sources */,
@@ -8660,6 +8671,7 @@ C0DE71B10000000000000002 /* AppDelegate+AgentChatNotifications.swift */ = {isa =
 				C4A570030000000000000001 /* CanvasShortcutContextTests.swift in Sources */,
 				CFA0000411000000FORKTEST /* ChatApprovalDedupePolicyTests.swift in Sources */,
 				D41A7C03D41A7C03D41A7C03 /* ChatLazyLayoutScaleTests.swift in Sources */,
+				A5009B0100000000000000FF /* ChatMarkdownTableTests.swift in Sources */,
 				EB63D0986F76D1ECE3A0ABD5 /* ChatmuxProjectStoreTests.swift in Sources */,
 				CFB000511000000FORKTEST /* ChatmuxUpstreamSeamTests.swift in Sources */,
 				CFA0000111000000FORKTEST /* ChatPermissionRulesTests.swift in Sources */,

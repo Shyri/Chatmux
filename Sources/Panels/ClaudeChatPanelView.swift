@@ -4461,9 +4461,18 @@ final class ChatMarkdownContentCache {
 /// - `.heavy`: contiene tabla o fenced code → cae al path actual de
 ///   MarkdownUI con `cmuxChatMarkdownTheme` (preserva tabla + syntax
 ///   highlight + blockquote custom).
-enum ChatMarkdownComplexity: Sendable {
-    case simple
-    case heavy
+enum ChatMarkdownComplexity: Int, Sendable {
+    case simple = 0
+    case heavy = 1
+    /// Contains a GFM table. Split into segments and render the tables with
+    /// `ChatMarkdownTableView`, which does not publish anchors.
+    ///
+    /// MarkdownUI's table publishes one `Anchor<CGRect>` per cell through
+    /// `anchorPreference` and reads them back under two `GeometryReader`s to
+    /// paint borders. Those anchors climb out of the table to the transcript's
+    /// hosting view and get recombined on every layout pass, so the cost is
+    /// per-scroll and grows with the whole transcript.
+    case tabular = 2
 }
 
 final class ChatMarkdownComplexityProbe {
@@ -4478,20 +4487,40 @@ final class ChatMarkdownComplexityProbe {
 
     func classify(_ text: String) -> ChatMarkdownComplexity {
         let key = text as NSString
-        if let cached = cache.object(forKey: key) {
-            return cached.intValue == 0 ? .simple : .heavy
+        if let cached = cache.object(forKey: key),
+           let complexity = ChatMarkdownComplexity(rawValue: cached.intValue) {
+            return complexity
         }
         let result: ChatMarkdownComplexity = Self.detect(text)
         lock.lock()
-        cache.setObject(NSNumber(value: result == .simple ? 0 : 1), forKey: key)
+        cache.setObject(NSNumber(value: result.rawValue), forKey: key)
         lock.unlock()
         return result
     }
 
     private static func detect(_ text: String) -> ChatMarkdownComplexity {
+        // Tables are checked before anything else, including fenced code: a
+        // message with both still wants its tables out of MarkdownUI, and the
+        // segmenter leaves the fenced parts alone.
+        //
+        // The cheap regex gates the real check — the segmenter walks every
+        // line, and this runs per bubble on every re-render.
+        if text.range(
+            of: #"(?m)^\s*\|.*\|\s*$\n\s*\|[\s\-:|]+\|\s*$"#,
+            options: .regularExpression
+        ) != nil, ChatMarkdownSegmenter.containsTable(text) {
+            return .tabular
+        }
+        return detectBlock(text)
+    }
+
+    /// The original classification, for text with no extractable table —
+    /// including the segments the splitter hands back.
+    static func detectBlock(_ text: String) -> ChatMarkdownComplexity {
         // Fenced code block — three backticks on a line.
         if text.contains("```") { return .heavy }
-        // GFM table — header row + separator row pattern. Cheap regex.
+        // A table shape the segmenter refused to lift out (inside a fence,
+        // ragged columns) still needs MarkdownUI.
         if text.range(
             of: #"(?m)^\s*\|.*\|\s*$\n\s*\|[\s\-:|]+\|\s*$"#,
             options: .regularExpression
@@ -4701,7 +4730,7 @@ private final class ChatMarkdownThemeCache {
 /// instance keyed by `(isDark, palette terminal colors)` so repeated
 /// `TextBlockRow.body` evaluations during streaming don't reconstruct
 /// the closure-heavy `Theme` from scratch.
-private func cmuxChatMarkdownTheme(isDark: Bool, palette: ChatPalette, fontSize: CGFloat) -> Theme {
+func cmuxChatMarkdownTheme(isDark: Bool, palette: ChatPalette, fontSize: CGFloat) -> Theme {
     ChatMarkdownThemeCache.shared.theme(isDark: isDark, palette: palette, fontSize: fontSize)
 }
 
@@ -5486,6 +5515,13 @@ private struct TextBlockRow: View, Equatable {
                                 .markdownTheme(cmuxChatMarkdownTheme(isDark: isDark, palette: palette, fontSize: fontSize))
                                 .lineSpacing(2)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                        case .tabular:
+                            ChatTabularMessageView(
+                                text: text,
+                                isDark: isDark,
+                                palette: palette,
+                                fontSize: fontSize
+                            )
                         }
                     }
                     if !text.isEmpty {
